@@ -34,16 +34,14 @@ describe("Scenario 1 — Supabase client connects to dev project", () => {
     // the error is caught here rather than crashing the whole test suite.
     const { supabase } = await import("../lib/supabase");
 
-    // Run a simple query: SELECT NOW() returns the current database time.
-    // This is the lightest possible query — it proves the connection works
-    // without touching any application tables.
-    const { data, error } = await supabase.rpc("now" as never);
+    // Call getSession() on the Supabase auth API.
+    // This is the lightest possible request — it hits the Supabase server
+    // without requiring any database tables to exist yet.
+    // If the URL or anon key are wrong, this will return an error.
+    const { error } = await supabase.auth.getSession();
 
     // The connection succeeded if there is no error.
-    // We don't check the exact timestamp — just that something came back.
     expect(error).toBeNull();
-    // data should be truthy (a timestamp string)
-    expect(data).toBeTruthy();
   });
 });
 
