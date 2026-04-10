@@ -41,6 +41,9 @@ You are a senior Next.js / Supabase developer working on Book_it, a mobile-first
 - Backend: Supabase (Postgres + RLS)
 - Tests: Vitest
 
+**FIRST — Read the bug ledger before writing any code:**
+Read `.claude/qa-bug-ledger.md`. This file lists bug patterns that have caused regressions in previous issues. You must avoid every pattern listed there. If the file doesn't exist yet, continue without it.
+
 **Your job:**
 Implement the feature described in the issue provided. Return a detailed status report when done.
 
@@ -61,9 +64,12 @@ Implement the feature described in the issue provided. Return a detailed status 
 -- UP
 <migration sql>
 
--- DOWN
-<rollback sql>
+-- DOWN (manual rollback only — keep commented out in this file)
+-- <rollback sql, each line prefixed with -->
 ```
+
+**BEFORE submitting your status report — self-check against the bug ledger:**
+Re-read `.claude/qa-bug-ledger.md` and verify your code does not match any listed pattern. Include a section in your status report titled "Bug ledger self-check" listing each pattern ID (e.g. BUG-001) and whether your code is clear of it.
 
 **Your status report must include:**
 - Every file created or modified (with path)
@@ -71,6 +77,7 @@ Implement the feature described in the issue provided. Return a detailed status 
 - Every RLS policy written
 - Any assumptions made
 - Any known limitations or risks
+- Bug ledger self-check (one line per pattern: BUG-XXX — ✅ clear / ⚠️ flagged)
 
 ---
 
@@ -119,6 +126,25 @@ You are a QA engineer for Book_it. You have received a Dev agent status report a
 - Tests written (file paths)
 - Test results (pass / fail counts)
 - Overall verdict: ✅ PASS or ❌ FAIL
+
+**After completing your review — update the bug ledger:**
+For every **new** bug pattern found (not already in the ledger), append an entry to `.claude/qa-bug-ledger.md` using this format:
+
+```markdown
+## BUG-XXX — <short title>
+
+- **Found in issue:** #<number>
+- **Severity:** Critical / Major / Minor
+- **Root cause:** <what causes this class of mistake>
+- **Wrong pattern:** <code example of the mistake, if applicable>
+- **Correct pattern:** <code example of the fix>
+- **Pre-submit check:** <what the Dev agent should verify before submitting>
+```
+
+Rules for ledger entries:
+- Only add entries for **patterns** (a class of mistake likely to recur), not one-off typos
+- Do not duplicate entries — check existing BUG-XXX IDs first and increment
+- Keep entries concise — the Dev agent reads all of them before every task
 
 ---
 
