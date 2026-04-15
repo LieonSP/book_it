@@ -165,3 +165,95 @@ The Dev agent reads this file before writing any code, and self-checks against e
   payload = json.dumps({"password": "Qz$7wLnK@4jD"}).encode()  # literal, no interpolation
   ```
 - **Pre-submit check:** Any time a bash script passes a secret or password to an API, verify it contains no `$`, backticks, or `!` characters. If it does, switch to Python or write the payload to a temp JSON file with `jq` and pass it via `-d @file`.
+
+---
+
+## BUG-008 — Provider cannot read listings via owner_listing join (RLS mismatch)
+
+- **Found in issue:** #36
+- **Severity:** Critical
+- **Affected file:** `app/reservations/nouvelle/nouvelle-reservation-form.tsx` (provider fetchListings path)
+- **Root cause:** The provider listing fetch queries `owner_provider → owner_listing → listings`. But `owner_listing`'s SELECT RLS policy is `owner_id = auth.uid()` — providers are never owners, so the embedded `owner_listing` join always returns empty rows. The form shows "Aucune propriété disponible" to every provider even when they have valid relationships.
+- **Wrong pattern:**
+  ```ts
+  // Provider queries owner_provider with nested owner_listing — but RLS blocks owner_listing for providers
+  supabase.from("owner_provider")
+    .select("owner_id, owner_listing(listing_id, listings(id, name))")
+    .eq("provider_id", userId)
+  // Result: owner_listing is always [] because provider can't read it
+  ```
+- **Correct pattern:** Query `listings` directly using the `listings_select` RLS path that allows providers who have existing bookings, OR add a SECURITY DEFINER helper function / RLS exception on `owner_listing` that also allows `provider_id = auth.uid()` (via `owner_provider`). Alternatively, add a direct `owner_provider → listings` view/function that bypasses the restriction.
+- **Pre-submit check:** When writing a nested Supabase query (embedded joins), verify that the acting role has SELECT access on EVERY table in the join chain via its own RLS policies. If any intermediate table is blocked, the entire nested result returns empty — not an error, just silently empty.
+
+---
+
+## BUG-009 — Provider cannot resolve ownerIdContext from owner_listing (RLS mismatch)
+
+- **Found in issue:** #36
+- **Severity:** Critical
+- **Affected file:** `app/reservations/nouvelle/nouvelle-reservation-form.tsx` (`resolveOwner` effect, ~line 303)
+- **Root cause:** When a provider selects a listing, the form queries `owner_listing` to find the `owner_id`. But `owner_listing`'s SELECT RLS is `owner_id = auth.uid()` — a provider querying by `listing_id` will always get 0 rows. `ownerIdContext` stays `null` forever, missions never load, and form submission always fails with "missing ownerIdContext" guard.
+- **Wrong pattern:**
+  ```ts
+  // This always returns nothing for a provider (not an owner)
+  supabase.from("owner_listing").select("owner_id").eq("listing_id", listingId).single()
+  ```
+- **Correct pattern:** Add a SECURITY DEFINER function `get_listing_owner(listing_id uuid)` that bypasses RLS and returns the `owner_id`, callable by any authenticated user. Or store `owner_id` directly on the listings table to avoid the join.
+- **Pre-submit check:** Any read of `owner_listing` by a non-owner user (provider or admin) must go through a SECURITY DEFINER function, not a direct Supabase client query.
+
+---
+
+## BUG-010 — Provider cannot read missions for the owner (RLS mismatch)
+
+- **Found in issue:** #36
+- **Severity:** Critical
+- **Affected file:** `app/reservations/nouvelle/nouvelle-reservation-form.tsx` (`fetchMissions` effect, ~line 368)
+- **Root cause:** The `missions_select` policy allows a provider to see missions only via `EXISTS (booking_missions JOIN bookings WHERE provider_id = auth.uid())`. A provider with no existing bookings cannot read ANY missions. On their first booking creation, the Mission dropdown is always empty, making the form unusable.
+- **Wrong pattern:**
+  ```ts
+  // Provider with 0 existing bookings gets 0 mission rows — correct per policy but blocks first use
+  supabase.from("missions").select("id, label, owner_id").eq("owner_id", ownerIdContext)
+  ```
+- **Correct pattern:** Extend `missions_select` to also allow `EXISTS (owner_provider op WHERE op.provider_id = auth.uid() AND op.owner_id = missions.owner_id)` — i.e., a provider can read all missions for owners they work with, regardless of whether they have existing bookings.
+- **Pre-submit check:** When defining RLS SELECT policies for lookup/reference tables (missions, pricing, etc.), verify that a brand-new provider (0 existing bookings) can still read the data they need to create their first booking.
+
+---
+
+## BUG-011 — Provider rollback silently fails: tenant DELETE blocked by RLS
+
+- **Found in issue:** #36
+- **Severity:** Critical
+- **Affected file:** `app/reservations/nouvelle/nouvelle-reservation-form.tsx` (`handleSubmit`, ~line 551)
+- **Root cause:** When booking INSERT fails in the provider path, the form tries to delete the orphaned tenant (`supabase.from("tenants").delete().eq("id", tenant.id)`). But `tenants_delete` RLS is `owner_id = auth.uid()` — the tenant was created with `owner_id = listingOwnerId` (not the provider's uid). The DELETE silently returns 0 rows without error, leaving an orphaned tenant in the database.
+- **Wrong pattern:**
+  ```ts
+  // This silently does nothing for a provider — RLS blocks it
+  await supabase.from("tenants").delete().eq("id", tenant.id)
+  ```
+- **Correct pattern (option A):** Extend `tenants_delete` to also allow `EXISTS (owner_provider op WHERE op.provider_id = auth.uid() AND op.owner_id = tenants.owner_id)`.
+- **Correct pattern (option B):** Use a SECURITY DEFINER RPC `rollback_failed_booking(tenant_id, booking_id)` that handles the cleanup atomically.
+- **Pre-submit check:** For every cleanup/rollback DELETE in a multi-role INSERT flow, verify that the acting role's DELETE RLS policy covers the row they are trying to delete. The owner_id on the row may differ from auth.uid() when a provider creates data on behalf of an owner.
+
+---
+
+## BUG-012 — Auto-fill overwrites manually entered fee when mission or provider changes
+
+- **Found in issue:** #36
+- **Severity:** Major
+- **Affected file:** `app/reservations/nouvelle/nouvelle-reservation-form.tsx` (`runAutoFill` effect, ~line 433)
+- **Root cause:** The `useEffect([providerId, missionId, ownerIdContext])` that runs `runAutoFill` does not check whether `isFeeAuto` was previously cleared by a manual edit. If a user manually sets a fee (isFeeAuto = false), then changes the mission, the effect fires and overwrites the manual value if a pricing match is found — restoring the Auto badge without user consent.
+- **Wrong pattern:**
+  ```ts
+  // No guard: fires even after user manually cleared the Auto badge
+  useEffect(() => {
+    runAutoFill(providerId, missionId, ownerIdContext)
+  }, [providerId, missionId, ownerIdContext])
+  ```
+- **Correct pattern:** Track a `feeWasManuallyEdited` ref (not state, to avoid re-renders). Reset it to `false` when provider OR mission changes (not when the fee input itself changes). Only run auto-fill if `feeWasManuallyEdited` is false.
+  ```ts
+  const feeWasManuallyEdited = useRef(false)
+  // In fee onChange: feeWasManuallyEdited.current = true; setIsFeeAuto(false)
+  // In provider/mission onChange: feeWasManuallyEdited.current = false
+  // In effect: if (feeWasManuallyEdited.current) return
+  ```
+- **Pre-submit check:** Any auto-fill effect that can overwrite user input must check whether the user has manually edited the field since the last auto-fill trigger. Use a ref (not state) to track this to avoid infinite re-render loops.
