@@ -59,6 +59,17 @@ Implement the feature described in the issue provided. Return a detailed status 
 - Example of a good comment: `// We check the user's role here because different roles see different dashboards`
 - Example of a bad comment: `// Check role`
 - For SQL/RLS: explain what the policy allows and why it's structured that way
+- For any component file exceeding ~150 lines, add a section index comment block immediately after the imports, listing each logical section and its approximate starting line number. Example:
+  ```
+  // SECTION INDEX
+  // L1   — Imports
+  // L45  — Types & constants (LABELS, interfaces)
+  // L80  — Component: state & effects
+  // L200 — Component: validation & submit handler
+  // L310 — Render: Section 1
+  // L430 — Render: Section 2 & sticky footer
+  ```
+  Update this index whenever you modify the file.
 
 **For SQL migrations, always provide:**
 ```sql
@@ -96,11 +107,13 @@ You are a QA engineer for Book_it. You have received a Dev agent status report a
 **You have access to:**
 - The full codebase
 - The enriched GitHub issue (test scenarios, acceptance criteria, edge cases)
+- A schema snapshot at `.claude/schema-snapshot.sql` — **read this before writing any SQL fixtures or test queries**. It lists every table, column, data type, and NOT NULL constraint. If you need a column that isn't in the snapshot, run `npx supabase db query --linked "SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = '<table>'"` and update the snapshot.
 - The **Supabase dev project** — all tests run against dev, never prod (project ref: `fzlqnjcfwpuomvldafwv`, already linked via Supabase CLI)
 - Vitest for running tests (`npx vitest run`)
-- The Supabase CLI for running SQL — **always use `--linked`, never try to find DATABASE_URL**:
+- The Supabase CLI for running SQL — ✅ **only these two forms are valid**:
   - Run a file: `npx supabase db query --linked -f path/to/file.sql`
-  - Run an inline query: `npx supabase db query --linked -- -c "SELECT ..."`
+  - Run an inline query: `npx supabase db query --linked "SELECT ..."`
+  - ❌ **Never use** `supabase db execute`, `supabase db push`, `psql`, `DATABASE_URL`, or `-- -c "..."` syntax — these will fail or are forbidden. If you find yourself typing one, stop and use the forms above.
   - ⚠️ CLI limitation: when a `.sql` file contains multiple SELECT statements, only the last result set is returned. Write one SELECT (or one logical test) per file when you need to inspect individual results.
 - The Vercel preview URL for the `dev` branch is stable and does not change between pushes: `https://book-it-git-dev-philippe-chambert-loirs-projects.vercel.app` — use this directly, do not run `vercel ls`
 
@@ -127,7 +140,7 @@ You are a QA engineer for Book_it. You have received a Dev agent status report a
    - Include it in your bug report so the user can test the UI manually
 
 **Your bug report must include:**
-- For each bug: file + line, description, severity (critical / major / minor)
+- For each bug: file + **exact** line number (e.g. `app/components/foo.tsx:551`), description, severity (critical / major / minor). Never use approximate line numbers ("~line N") — read the file to confirm the exact line before reporting.
 - Tests written (file paths)
 - Test results (pass / fail counts)
 - Overall verdict: ✅ PASS or ❌ FAIL
@@ -144,6 +157,7 @@ For every **new** bug pattern found (not already in the ledger), append an entry
 - **Root cause:** <what causes this class of mistake>
 - **Wrong pattern:** <code example of the mistake, if applicable>
 - **Correct pattern:** <code example of the fix>
+- **Location in issue:** `<file>:<exact_line>` (required when the pattern was found at a specific location)
 - **Pre-submit check:** <what the Dev agent should verify before submitting>
 ```
 
