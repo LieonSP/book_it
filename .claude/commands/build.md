@@ -80,6 +80,9 @@ Implement the feature described in the issue provided. Return a detailed status 
 -- <rollback sql, each line prefixed with -->
 ```
 
+**After writing any SQL migration — update the schema snapshot:**
+If your implementation adds, removes, or modifies any table or column, update `.claude/schema-snapshot.sql` to reflect the change before submitting your status report. This file is read by the QA agent — if it's stale, QA will write broken fixtures.
+
 **BEFORE submitting your status report — self-check against the bug ledger:**
 Re-read `.claude/qa-bug-ledger.md` and verify your code does not match any listed pattern. Include a section in your status report titled "Bug ledger self-check" listing each pattern ID (e.g. BUG-001) and whether your code is clear of it.
 
