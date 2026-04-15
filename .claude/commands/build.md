@@ -102,7 +102,7 @@ You are a QA engineer for Book_it. You have received a Dev agent status report a
   - Run a file: `npx supabase db query --linked -f path/to/file.sql`
   - Run an inline query: `npx supabase db query --linked -- -c "SELECT ..."`
   - ⚠️ CLI limitation: when a `.sql` file contains multiple SELECT statements, only the last result set is returned. Write one SELECT (or one logical test) per file when you need to inspect individual results.
-- The Vercel CLI to retrieve the latest preview URL: `vercel ls` (do not use `--json` — the npx-installed CLI does not support that flag; parse the plain-text output instead)
+- The Vercel preview URL for the `dev` branch is stable and does not change between pushes: `https://book-it-git-dev-philippe-chambert-loirs-projects.vercel.app` — use this directly, do not run `vercel ls`
 
 **Your testing checklist:**
 
@@ -122,8 +122,8 @@ You are a QA engineer for Book_it. You have received a Dev agent status report a
    - Read the "Acceptance criteria" section from the GitHub issue
    - Mark each criterion as met or not met based on your tests and code review
 
-4. **Retrieve the Vercel preview URL** (for frontend issues only)
-   - Run `vercel ls` to get the latest preview deployment URL (do not use `--json` — not supported by the npx-installed CLI)
+4. **Vercel preview URL** (for frontend issues only)
+   - The stable preview URL is: `https://book-it-git-dev-philippe-chambert-loirs-projects.vercel.app`
    - Include it in your bug report so the user can test the UI manually
 
 **Your bug report must include:**
@@ -246,10 +246,70 @@ Return a structured report to the user:
 - [ ] Vitest tests pass
 - [ ] All tests ran against Supabase dev (not prod)
 - [ ] Vercel preview URL: <url> (for manual UI review)
-- [ ] GitHub issue ready to close
+- [ ] GitHub issue moved to "In review" on Lieon's Kanban (issue stays open — closed only on prod deploy)
 ```
 
-Close the GitHub issue if the final verdict is ✅ PASS:
+Move the GitHub issue to **"In review"** on the project board if the final verdict is ✅ PASS.
+Do NOT close the issue — closing happens only when the feature is deployed to prod.
+
+Run the following commands to move the issue to "In review":
+```bash
+# 1. Get the project number for "Lieon's Kanban"
+PROJECT_NUM=$(gh project list --owner LieonSP --format json | jq -r '.projects[] | select(.title == "Lieon'\''s Kanban") | .number')
+
+# 2. Get the project node ID
+PROJECT_ID=$(gh project list --owner LieonSP --format json | jq -r '.projects[] | select(.title == "Lieon'\''s Kanban") | .id')
+
+# 3. Get the item node ID for this issue
+ITEM_ID=$(gh project item-list $PROJECT_NUM --owner LieonSP --format json | jq -r --argjson n <number> '.items[] | select(.content.number == $n) | .id')
+
+# 4. Get the Status field ID and the "In review" option ID
+FIELD_INFO=$(gh project field-list $PROJECT_NUM --owner LieonSP --format json)
+FIELD_ID=$(echo $FIELD_INFO | jq -r '.fields[] | select(.name == "Status") | .id')
+OPTION_ID=$(echo $FIELD_INFO | jq -r '.fields[] | select(.name == "Status") | .options[] | select(.name == "In review") | .id')
+
+# 5. Move the issue to "In review"
+gh project item-edit --project-id $PROJECT_ID --id $ITEM_ID --field-id $FIELD_ID --single-select-option-id $OPTION_ID
 ```
-gh issue close <number> --repo LieonSP/book_it --comment "Closed automatically after passing Dev+QA cycle."
+
+Also add a **prod release checklist comment** on the issue. This comment must contain everything the person deploying to prod needs to know — no assumptions, no "check the code":
+
 ```
+gh issue comment <number> --repo LieonSP/book_it --body "$(cat <<'EOF'
+## ✅ Dev + QA passed — Ready for prod deployment
+
+### 🗄️ Migrations to run on prod
+<!-- List every migration file, in order. If none, write "None." -->
+- `supabase/migrations/<timestamp>_<name>.sql` — <one-line description of what it does>
+
+### 🔐 RLS policies applied
+<!-- List each policy: table, policy name, and what it allows -->
+- `<table>`: `<policy name>` — <what it allows>
+
+### 🔑 Environment variables
+<!-- List any new env vars needed in Vercel prod. If none, write "None." -->
+- `VAR_NAME` — <what it's for>
+
+### 🧩 Manual steps before deploying
+<!-- Any action required before or after running migrations. If none, write "None." -->
+- <step>
+
+### ⚠️ Risks & rollback
+<!-- What could go wrong and how to revert. Be specific. -->
+- **Risk:** <description>
+- **Rollback:** <exact steps or SQL to undo>
+
+### 📦 Commit
+`<commit SHA>` on `dev`
+EOF
+)"
+```
+
+Then commit and push all changes to `dev`:
+```
+git add -A
+git commit -m "feat(<scope>): <short description> (#<number>)\n\n<bullet summary of what was built>\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+git push origin dev
+```
+
+Include the commit SHA in the final report so the user can reference it.

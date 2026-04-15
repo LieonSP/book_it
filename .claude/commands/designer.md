@@ -164,16 +164,24 @@ function Version2() { ... }
 function Version3() { ... }
 ```
 
+### C1.5 — Start the dev server
+
+After writing the preview page, start the dev server in the background if it is not already running on port 3000:
+
+```
+lsof -i :3000 | grep LISTEN || npm run dev &
+```
+
+Wait 3 seconds, then confirm the server is up before reporting to the user.
+
 ### C2 — Report to the user
 
-After writing the file, output:
+After writing the file and starting the dev server, output:
 
 ```
 ## Designer — 3 versions ready: Issue #<number>: <title>
 
-**To preview:**
-1. Run `npm run dev` (if not already running)
-2. Open http://localhost:3000/design-preview
+**Preview ready at:** http://localhost:3000/design-preview
 
 ### Version 1 — <short name>
 <2–3 sentences: UX bet + trade-offs>
@@ -245,6 +253,16 @@ Import components from `@/components/book-it`. Use CSS variable tokens defined i
 gh issue comment <number> --repo LieonSP/book_it --body "<build prompt>"
 ```
 
+**D2.5. Trigger the Product Owner agent:**
+
+Immediately after posting the comment, invoke the `/po` skill with the same issue number:
+
+```
+/po <number>
+```
+
+The PO agent will enrich the issue with acceptance criteria, edge cases, and test scenarios while you report to the user.
+
 **D3. Report to the user:**
 
 ```
@@ -252,10 +270,11 @@ gh issue comment <number> --repo LieonSP/book_it --body "<build prompt>"
 
 - Design version selected: <X> — <short name>
 - Build prompt posted to GitHub issue: ✅
+- Product Owner agent triggered on issue #<number> ✅
 - Preview page kept at http://localhost:3000/design-preview ✅
 - Dev server: left running (do not stop it)
 
-**Next step:** open the issue, copy the build prompt, and pass it to Claude Code.
+**Next step:** review the PO agent's enriched issue, then pass the build prompt to Claude Code.
 ```
 
 ---
