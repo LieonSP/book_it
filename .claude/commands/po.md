@@ -68,6 +68,11 @@ Before drafting anything, think through the following:
 I will not enrich the issue until you answer these questions.
 ```
 
+**Numbering rules (strictly enforced):**
+- Every question must have a number prefix: `1.`, `2.`, `3.`, etc.
+- This applies to the initial question list AND to any follow-up questions asked in subsequent messages
+- Never ask unnumbered questions — the user replies by number and expects a consistent format
+
 Wait for the user's answers before proceeding to Step 4. If there are no ambiguities, no conflicts, and no risks — state that clearly and ask the user to confirm you can proceed.
 
 ---
@@ -154,5 +159,5 @@ Return a summary:
 - Edge cases documented: <count>
 - Issue updated on GitHub: ✅
 
-Ready to run: /build-and-qa <number>
+Ready to run: /build <number>
 ```

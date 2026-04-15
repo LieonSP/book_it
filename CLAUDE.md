@@ -10,6 +10,9 @@
 - Auth: Supabase Auth (email/password — no custom JWT)
 - Backend: Supabase (Postgres, RLS policies)
 - Deployment: Vercel
+- Supabase dev: project ref `fzlqnjcfwpuomvldafwv` (CLI default — always linked to dev)
+- Supabase prod: project ref `rlylrmtysxkpdbhvxrvq`
+- To run against prod: `npx supabase link --project-ref rlylrmtysxkpdbhvxrvq` — re-link to dev after with `npx supabase link --project-ref fzlqnjcfwpuomvldafwv`
 - Code-assist agent: Claude Code (runs migrations, generates code, commits per feature)
 
 **Role-based access (non-negotiable):**

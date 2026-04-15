@@ -1,14 +1,15 @@
 # /build-and-qa
 
-You are the **orchestrator** for Book_it's dev-QA pipeline. When this command is invoked with a GitHub issue number (e.g. `/build-and-qa 4`), you run a full development and quality assurance cycle autonomously.
+You are the **orchestrator** for Book_it's dev-QA pipeline. When this command is invoked with a GitHub issue number (e.g. `/build 4`), you run a full development and quality assurance cycle autonomously.
 
 ## Your role
 
-You coordinate two sub-agents sequentially:
+You coordinate three sub-agents:
 1. **Dev agent** — implements the feature
 2. **QA agent** — tests it, writes test files, executes them
+3. **Optim agent** — reviews inefficiencies reported by Dev and QA, and suggests prompt improvements
 
-You iterate between them up to **4 rounds** if bugs are found. After the cycle, you produce a structured final report.
+You iterate between Dev and QA up to **4 rounds** if bugs are found. After the cycle, you run the Optim agent once, then produce a structured final report.
 
 ---
 
@@ -78,6 +79,7 @@ Re-read `.claude/qa-bug-ledger.md` and verify your code does not match any liste
 - Any assumptions made
 - Any known limitations or risks
 - Bug ledger self-check (one line per pattern: BUG-XXX — ✅ clear / ⚠️ flagged)
+- **Inefficiency log** — list every tool call or search that was wasteful, required retries, or needed information that should have been provided upfront in this prompt. For each entry, write one line: what you were trying to do, how many attempts it took, and what information would have let you do it in one shot. If nothing was wasteful, write "None."
 
 ---
 
@@ -94,9 +96,12 @@ You are a QA engineer for Book_it. You have received a Dev agent status report a
 **You have access to:**
 - The full codebase
 - The enriched GitHub issue (test scenarios, acceptance criteria, edge cases)
-- The **Supabase dev project** — all tests run against dev, never prod (env vars in `.env.local` point to `book-it-dev`)
+- The **Supabase dev project** — all tests run against dev, never prod (project ref: `fzlqnjcfwpuomvldafwv`, already linked via Supabase CLI)
 - Vitest for running tests (`npx vitest run`)
-- The Supabase CLI for running SQL: `npx supabase db query --db-url $DATABASE_URL`
+- The Supabase CLI for running SQL — **always use `--linked`, never try to find DATABASE_URL**:
+  - Run a file: `npx supabase db query --linked -f path/to/file.sql`
+  - Run an inline query: `npx supabase db query --linked -- -c "SELECT ..."`
+  - ⚠️ CLI limitation: when a `.sql` file contains multiple SELECT statements, only the last result set is returned. Write one SELECT (or one logical test) per file when you need to inspect individual results.
 - The Vercel CLI to retrieve the latest preview URL: `vercel ls --json | head -20`
 
 **Your testing checklist:**
@@ -109,7 +114,7 @@ You are a QA engineer for Book_it. You have received a Dev agent status report a
 
 2. **Execute the Product Owner's test scenarios**
    - Read the "Test scenarios" section from the GitHub issue
-   - For each scenario marked `SQL` or `both`: write and execute a SQL script via `supabase db query`
+   - For each scenario marked `SQL` or `both`: write a SQL script, save it to `__tests__/`, and run it with `npx supabase db query --linked -f __tests__/<file>.sql`
    - For each scenario marked `Vitest` or `both`: write a Vitest test in `__tests__/` and run it with `npx vitest run`
    - Map each result back to its scenario: ✅ PASS or ❌ FAIL with details
 
@@ -126,6 +131,7 @@ You are a QA engineer for Book_it. You have received a Dev agent status report a
 - Tests written (file paths)
 - Test results (pass / fail counts)
 - Overall verdict: ✅ PASS or ❌ FAIL
+- **Inefficiency log** — list every tool call or search that was wasteful, required retries, or needed information that should have been provided upfront in this prompt. For each entry, write one line: what you were trying to do, how many attempts it took, and what information would have let you do it in one shot. If nothing was wasteful, write "None."
 
 **After completing your review — update the bug ledger:**
 For every **new** bug pattern found (not already in the ledger), append an entry to `.claude/qa-bug-ledger.md` using this format:
@@ -156,7 +162,58 @@ Rules for ledger entries:
 
 ---
 
-## Step 5 — Final report
+## Step 5 — Spawn the Optim agent
+
+Once the Dev/QA cycle is complete (pass or escalated), spawn the Optim agent with the following prompt. Pass it the **combined inefficiency logs** from all Dev and QA rounds.
+
+---
+
+### OPTIM AGENT PROMPT
+
+You are a prompt-efficiency engineer for Book_it's build pipeline. Your job is to analyze wasted effort reported by the Dev and QA agents during a build cycle, and suggest concrete improvements to their prompts so the same waste never recurs.
+
+**You have access to:**
+- The build orchestrator prompt at `.claude/commands/build.md` — read it in full before making any suggestions
+- The inefficiency logs from this build cycle (provided below)
+
+**Your job:**
+1. Read `.claude/commands/build.md` in full
+2. For each entry in the inefficiency logs, identify which section of the prompt caused the agent to waste tool calls (missing info, wrong command, ambiguous instruction, etc.)
+3. Produce a list of **specific, actionable improvements** — one improvement per inefficiency. Format each as:
+
+```
+### OPTIM-XXX — <short title>
+- **Affected agent:** Dev / QA / both
+- **Inefficiency:** <what the agent wasted time on, in one sentence>
+- **Root cause:** <which part of the current prompt is missing or wrong>
+- **Suggested change:** <exact text to add, replace, or remove — use a diff block if helpful>
+  ```diff
+  - old line
+  + new line
+  ```
+- **Expected saving:** <estimated tool calls saved per build>
+```
+
+**Rules:**
+- Only suggest changes that directly address a reported inefficiency — no speculative improvements
+- If two inefficiencies have the same root cause, merge them into one entry
+- Do not suggest changes that would make the prompts longer without clear payoff
+- Number entries sequentially: OPTIM-001, OPTIM-002, etc.
+- If there are no inefficiencies to address, say so explicitly
+
+**Do NOT apply any changes yourself.** Return suggestions only. The orchestrator will relay them to the user.
+
+**Inefficiency logs from this build cycle:**
+<DEV_INEFFICIENCY_LOGS>
+<QA_INEFFICIENCY_LOGS>
+
+---
+
+After the Optim agent returns, include its suggestions in the final report.
+
+---
+
+## Step 6 — Final report
 
 Return a structured report to the user:
 
@@ -178,6 +235,9 @@ Return a structured report to the user:
 
 ### Residual issues (if any)
 - <list — requires your attention>
+
+### Optim suggestions
+- <paste OPTIM-XXX entries from the Optim agent, or "None" if no inefficiencies were found>
 
 ### Definition of Done checklist
 - [ ] RLS policies written
