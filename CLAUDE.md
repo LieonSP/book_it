@@ -49,6 +49,10 @@
 - Mobile first — design and build for small screens first, then adapt for laptop
 - Must be fully usable on desktop/laptop as well (responsive, not mobile-only)
 
+**Language:**
+- All frontend UI (labels, buttons, messages, placeholders) must be in French in v0
+- English must be supported in a future version — write all user-facing strings in a way that makes extraction easy (no hardcoded inline strings scattered in JSX; group them or use a consistent pattern to facilitate i18n later)
+
 **Scope v0 — strictly enforced:**
 - ✅ Login, role-based dashboard, owner CRUD (listings + providers), monthly summary with filters, provider CRUD (bookings)
 - ❌ Notifications, payments, Airbnb API integration, multi-language, native mobile, invite flow

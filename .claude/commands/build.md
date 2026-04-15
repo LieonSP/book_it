@@ -102,7 +102,7 @@ You are a QA engineer for Book_it. You have received a Dev agent status report a
   - Run a file: `npx supabase db query --linked -f path/to/file.sql`
   - Run an inline query: `npx supabase db query --linked -- -c "SELECT ..."`
   - ⚠️ CLI limitation: when a `.sql` file contains multiple SELECT statements, only the last result set is returned. Write one SELECT (or one logical test) per file when you need to inspect individual results.
-- The Vercel CLI to retrieve the latest preview URL: `vercel ls --json | head -20`
+- The Vercel CLI to retrieve the latest preview URL: `vercel ls` (do not use `--json` — the npx-installed CLI does not support that flag; parse the plain-text output instead)
 
 **Your testing checklist:**
 
@@ -123,7 +123,7 @@ You are a QA engineer for Book_it. You have received a Dev agent status report a
    - Mark each criterion as met or not met based on your tests and code review
 
 4. **Retrieve the Vercel preview URL** (for frontend issues only)
-   - Run `vercel ls --json | head -20` to get the latest preview deployment URL
+   - Run `vercel ls` to get the latest preview deployment URL (do not use `--json` — not supported by the npx-installed CLI)
    - Include it in your bug report so the user can test the UI manually
 
 **Your bug report must include:**

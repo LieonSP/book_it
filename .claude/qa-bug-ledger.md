@@ -104,3 +104,46 @@ The Dev agent reads this file before writing any code, and self-checks against e
   ROLLBACK;
   ```
 - **Pre-submit check:** Never write RLS tests using DO $$ blocks with SAVEPOINT/ROLLBACK TO SAVEPOINT. Always use top-level BEGIN/ROLLBACK. Never use PERFORM outside of PL/pgSQL — use SELECT instead.
+
+---
+
+## BUG-004 — Avatar fallback uses `??` instead of `||`, showing empty string for empty `first_name`
+
+- **Found in issue:** #3
+- **Severity:** Minor
+- **Affected file:** `app/dashboard/page.tsx`, line 101
+- **Root cause:** The nullish coalescing operator (`??`) only triggers on `null` or `undefined`. If `first_name` is an empty string `""`, `"".charAt(0).toUpperCase()` evaluates to `""`, which is falsy but not nullish — so `?? "?"` never fires. The avatar circle renders empty instead of showing `?`.
+- **Wrong pattern:**
+  ```tsx
+  const avatarLetter = profile.first_name?.charAt(0).toUpperCase() ?? "?"
+  // "" → "" (empty avatar — no fallback triggered)
+  ```
+- **Correct pattern:**
+  ```tsx
+  const avatarLetter = profile.first_name?.charAt(0).toUpperCase() || "?"
+  // "" → "?" (logical OR catches empty string)
+  ```
+- **Pre-submit check:** Whenever a string fallback should trigger for both null/undefined AND empty string, use `||` not `??`.
+
+---
+
+## BUG-005 — Shadcn-generated `ThemeProvider` wrapper left in codebase with missing `next-themes` dependency
+
+- **Found in issue:** #3
+- **Severity:** Major (blocks production build)
+- **Affected file:** `components/ui/theme-provider.tsx`
+- **Root cause:** `shadcn` CLI scaffolds a `ThemeProvider` wrapper that imports `next-themes`. When the package is not added to `package.json` (because theming is not needed for the feature), the TypeScript compiler fails the build with `Cannot find module 'next-themes'`. The component is never imported anywhere in the app, so it is dead code — but TypeScript still type-checks it.
+- **Wrong pattern:** Leave `components/ui/theme-provider.tsx` in the repo after shadcn scaffolding if `next-themes` is not installed.
+- **Correct pattern:** Either install `next-themes` (`npm install next-themes`) or delete `components/ui/theme-provider.tsx` if theming is not required by the feature. Choose deletion if theming is out of scope (v0 scope does not include it).
+- **Pre-submit check:** After any shadcn scaffold, run `npm run build` and verify no `Cannot find module` errors. Delete any shadcn-generated files that are not imported anywhere in the app.
+
+---
+
+## BUG-006 — Next.js 16 renames `middleware.ts` convention to `proxy`
+
+- **Found in issue:** #3
+- **Severity:** Minor (warning, not a build error — but will become breaking in a future Next.js version)
+- **Affected file:** `middleware.ts` (project root)
+- **Root cause:** Next.js 16 deprecated the `middleware` file convention. The framework now expects the file to be named `proxy.ts` (and the exported function `proxy`). The old `middleware.ts` still works at runtime but emits a build warning: `⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.`
+- **Correct pattern:** Rename `middleware.ts` → `proxy.ts` and rename the export `middleware` → `proxy`. Update `config.matcher` export name if required by the new convention.
+- **Pre-submit check:** After any Next.js major version bump, check the build output for deprecation warnings and migrate file conventions before they become hard errors.
