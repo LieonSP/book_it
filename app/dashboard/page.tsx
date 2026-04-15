@@ -25,6 +25,7 @@ import Link from "next/link"
 import { CalendarDays, Building2, Users, BarChart2, ChevronRight } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { Card } from "@/components/book-it/card"
+import { LogoutButton } from "@/components/book-it/logout-button"
 
 // ---------------------------------------------------------------------------
 // Type definitions
@@ -122,11 +123,19 @@ export default async function DashboardPage() {
           </p>
         </div>
 
-        {/* Avatar — a coloured circle showing the first letter of the user's name */}
-        <div className="h-8 w-8 rounded-full bg-primary-light flex items-center justify-center">
-          <span className="text-xs font-semibold text-primary">
-            {avatarLetter}
-          </span>
+        {/* Right side: avatar + logout icon */}
+        <div className="flex items-center gap-1">
+          {/* Avatar — a coloured circle showing the first letter of the user's name */}
+          <div className="h-8 w-8 rounded-full bg-primary-light flex items-center justify-center">
+            <span className="text-xs font-semibold text-primary">{avatarLetter}</span>
+          </div>
+          {/*
+           * LogoutButton is a Client Component — it uses the browser Supabase
+           * client to call signOut() and then redirects to /login.
+           * It is safe to render inside this Server Component: Next.js
+           * handles the server/client boundary automatically here.
+           */}
+          <LogoutButton />
         </div>
       </header>
 

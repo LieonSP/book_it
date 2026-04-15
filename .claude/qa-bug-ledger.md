@@ -147,3 +147,21 @@ The Dev agent reads this file before writing any code, and self-checks against e
 - **Root cause:** Next.js 16 deprecated the `middleware` file convention. The framework now expects the file to be named `proxy.ts` (and the exported function `proxy`). The old `middleware.ts` still works at runtime but emits a build warning: `⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.`
 - **Correct pattern:** Rename `middleware.ts` → `proxy.ts` and rename the export `middleware` → `proxy`. Update `config.matcher` export name if required by the new convention.
 - **Pre-submit check:** After any Next.js major version bump, check the build output for deprecation warnings and migrate file conventions before they become hard errors.
+
+---
+
+## BUG-007 — Bash `$` interpolation silently corrupts passwords containing special characters
+
+- **Found in issue:** #30
+- **Severity:** Major (users cannot log in — password set in auth does not match the intended value)
+- **Root cause:** When a password containing `$` (e.g. `Qz$7wLnK@4jD`) is passed inside a bash double-quoted string, the shell expands `$7` as a positional variable (empty string), silently corrupting the password. The API call succeeds with no error but sets a different password than intended.
+- **Wrong pattern:**
+  ```bash
+  PASS="Qz$7wLnK@4jD"
+  curl ... -d "{\"password\":\"$PASS\"}"  # $7 is expanded → wrong password
+  ```
+- **Correct pattern:** Use Python (or any language with native string literals) for API calls that include passwords or secrets with special characters:
+  ```python
+  payload = json.dumps({"password": "Qz$7wLnK@4jD"}).encode()  # literal, no interpolation
+  ```
+- **Pre-submit check:** Any time a bash script passes a secret or password to an API, verify it contains no `$`, backticks, or `!` characters. If it does, switch to Python or write the payload to a temp JSON file with `jq` and pass it via `-d @file`.

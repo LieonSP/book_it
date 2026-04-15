@@ -161,3 +161,11 @@ Return a summary:
 
 Ready to run: /build <number>
 ```
+
+**If no clarifying questions were asked (zero ambiguities):** immediately invoke the build skill after reporting:
+
+```
+/build <number>
+```
+
+Do not ask for confirmation — the absence of ambiguities is the signal to proceed. If questions were asked and answered, do NOT auto-trigger the build; let the user decide when to proceed.
