@@ -10,6 +10,9 @@
 - Auth: Supabase Auth (email/password — no custom JWT)
 - Backend: Supabase (Postgres, RLS policies)
 - Deployment: Vercel
+- Supabase dev: project ref `fzlqnjcfwpuomvldafwv` (CLI default — always linked to dev)
+- Supabase prod: project ref `rlylrmtysxkpdbhvxrvq`
+- To run against prod: `npx supabase link --project-ref rlylrmtysxkpdbhvxrvq` — re-link to dev after with `npx supabase link --project-ref fzlqnjcfwpuomvldafwv`
 - Code-assist agent: Claude Code (runs migrations, generates code, commits per feature)
 
 **Role-based access (non-negotiable):**
@@ -45,6 +48,10 @@
 **Design philosophy:**
 - Mobile first — design and build for small screens first, then adapt for laptop
 - Must be fully usable on desktop/laptop as well (responsive, not mobile-only)
+
+**Language:**
+- All frontend UI (labels, buttons, messages, placeholders) must be in French in v0
+- English must be supported in a future version — write all user-facing strings in a way that makes extraction easy (no hardcoded inline strings scattered in JSX; group them or use a consistent pattern to facilitate i18n later)
 
 **Scope v0 — strictly enforced:**
 - ✅ Login, role-based dashboard, owner CRUD (listings + providers), monthly summary with filters, provider CRUD (bookings)

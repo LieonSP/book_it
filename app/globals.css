@@ -1,26 +1,123 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================
+   Book_it Design System Tokens
+   ============================================
+   Primary: Sky blue spectrum (calm, trustworthy, operational)
+   Inspired by Airbnb's visual language but positioned for
+   property management workflows.
+   ============================================ */
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Primary Colors - Sky Blue Spectrum */
+  --primary: #0EA5E9;           /* Sky 500 - Primary buttons, active states, links */
+  --primary-dark: #0284C7;      /* Sky 600 - Button hover, focus rings */
+  --primary-light: #E0F2FE;     /* Sky 100 - Selected rows, subtle backgrounds */
+  --primary-foreground: #FFFFFF;
+
+  /* Neutral Colors - Slate Spectrum */
+  --neutral-900: #0F172A;       /* Slate 900 - Body text, headings */
+  --neutral-500: #64748B;       /* Slate 500 - Secondary text, placeholders */
+  --neutral-200: #E2E8F0;       /* Slate 200 - Borders, dividers */
+  --neutral-50: #F8FAFC;        /* Slate 50 - Page background */
+
+  /* Semantic Colors */
+  --success: #10B981;           /* Emerald 500 - Confirmed status badge */
+  --success-light: rgba(16, 185, 129, 0.15);
+  --error: #EF4444;             /* Red 500 - Destructive actions, error states */
+  --error-light: rgba(239, 68, 68, 0.15);
+  --warning: #F59E0B;           /* Amber 500 - Pending/attention status badge */
+  --warning-light: rgba(245, 158, 11, 0.15);
+
+  /* Surface Colors */
+  --white: #FFFFFF;             /* Card surfaces, inputs */
+
+  /* Mapped to shadcn tokens for component compatibility */
+  --background: var(--neutral-50);
+  --foreground: var(--neutral-900);
+  --card: var(--white);
+  --card-foreground: var(--neutral-900);
+  --popover: var(--white);
+  --popover-foreground: var(--neutral-900);
+  --secondary: var(--neutral-50);
+  --secondary-foreground: var(--neutral-900);
+  --muted: var(--neutral-50);
+  --muted-foreground: var(--neutral-500);
+  --accent: var(--primary-light);
+  --accent-foreground: var(--primary-dark);
+  --destructive: var(--error);
+  --destructive-foreground: var(--white);
+  --border: var(--neutral-200);
+  --input: var(--neutral-200);
+  --ring: var(--primary);
+
+  /* Border Radius - 8px for cards as per spec */
+  --radius: 0.5rem;
 }
 
 @theme inline {
+  /* Typography - Inter font family */
+  --font-sans: 'Inter', 'Inter Fallback', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback', monospace;
+
+  /* Primary Colors */
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-primary-light: var(--primary-light);
+  --color-primary-foreground: var(--primary-foreground);
+
+  /* Neutral Colors */
+  --color-neutral-900: var(--neutral-900);
+  --color-neutral-500: var(--neutral-500);
+  --color-neutral-200: var(--neutral-200);
+  --color-neutral-50: var(--neutral-50);
+
+  /* Semantic Colors */
+  --color-success: var(--success);
+  --color-success-light: var(--success-light);
+  --color-error: var(--error);
+  --color-error-light: var(--error-light);
+  --color-warning: var(--warning);
+  --color-warning-light: var(--warning-light);
+
+  /* Surface Colors */
+  --color-white: var(--white);
+
+  /* Mapped shadcn tokens */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Border Radius */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    @apply bg-background text-foreground;
+  }
 }
