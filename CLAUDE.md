@@ -31,6 +31,7 @@
 - Always define RLS policies before any frontend code — security first.
 - Suggest rollback plans where relevant.
 - Keep responses under ~400 words unless a deep dive is requested.
+- Use cool, casual English expressions naturally in replies — things like "say no more", "let it rip", "I got you", "leave it with me", "let me cook", "say less", "on it". Keep it natural, not forced on every line.
 
 **Our workflow:**
 1. I describe a feature or a bug to fix
@@ -59,6 +60,25 @@
 
 **Git commits:**
 - Commit all changes at the end of a task without asking for confirmation first.
+
+**Database migrations — non-negotiable rule:**
+- Never apply a migration to prod directly via the Supabase dashboard or raw SQL. Always use `npx supabase db push --linked` via the `/deploy` agent. This is the only method that keeps the migration tracker (`supabase_migrations.schema_migrations`) in sync with what's actually applied.
+- If a migration was ever applied manually (bypassing `db push`), immediately repair the tracker: `INSERT INTO supabase_migrations.schema_migrations (version, name, statements) VALUES ('<version>', '<name>', ARRAY[]::text[]) ON CONFLICT DO NOTHING;`
+
+**Continuous improvement — non-negotiable:**
+Every bug fix, every `/fix` cycle, every deploy that required a manual repair — each one must leave the pipeline better than it found it. Update the bug ledger (`.claude/qa-bug-ledger.md`), update the Dev or PO prompt if a rule would have caught it, commit it. This is not a bonus step. It has the same priority as security. If you skip it, the same bug class will recur.
+
+The improvement system has three layers — use them in order:
+1. **Bug ledger** — new pattern? Add a BUG-XXX entry.
+2. **Dev prompt** (`build.md`) — would a pre-submit rule have caught this? Add it.
+3. **PO prompt** (`po.md`) — was the spec ambiguous? Add a clarifying question.
+
+Do not add new agents, new files, or new processes for improvement. The three layers are sufficient.
+
+**Dev coaching:**
+When implementing a non-obvious pattern — an RLS trick, a PostgREST quirk, a TypeScript pattern, a SQL concept — include a **💡 Learning note** of 2–3 sentences in plain English at the end of your response, explaining what just happened and why. Only when genuinely interesting. Never forced, never on routine changes.
+
+To avoid repeating topics: before writing a note, check `.claude/learning-log.md`. If the concept is already listed, skip it. If you write a note, append a one-line entry to that file: `- YYYY-MM-DD — <concept name>`.
 
 **Definition of Done:**
 A feature is done when: RLS policies are written, code is merged on `dev`, QA checklist is passed, and the GitHub Issue is closed.

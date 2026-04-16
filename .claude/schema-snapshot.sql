@@ -1,7 +1,7 @@
 -- ============================================================
 -- Book_it — Supabase schema snapshot
 -- Generated from: dev project (fzlqnjcfwpuomvldafwv)
--- Last updated: 2026-04-15
+-- Last updated: 2026-04-16 (Issue #33)
 --
 -- PURPOSE: reference for Dev and QA agents writing SQL fixtures
 -- or test queries. Read this before any INSERT to avoid NOT NULL
@@ -130,6 +130,15 @@
 -- booking_id   uuid         NOT NULL  (FK → bookings.id, CASCADE)
 -- mission_id   uuid         NOT NULL  (FK → missions.id, RESTRICT)
 -- PRIMARY KEY (booking_id, mission_id)
+
+-- ------------------------------------------------------------
+-- TRIGGER: public.trg_block_provider_fee_update
+-- Added in migration 20260416000002_block_provider_fee_update.sql
+-- Fires BEFORE UPDATE on public.bookings.
+-- Rejects any UPDATE that changes provider_fee or pricing_id
+-- when auth.uid() resolves to a user with type = 'provider'.
+-- FUNCTION: public.block_provider_fee_update() SECURITY DEFINER
+-- ------------------------------------------------------------
 
 -- ============================================================
 -- MINIMAL FIXTURE TEMPLATES

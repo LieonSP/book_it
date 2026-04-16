@@ -338,3 +338,18 @@ The Dev agent reads this file before writing any code, and self-checks against e
   // In effect: if (feeWasManuallyEdited.current) return
   ```
 - **Pre-submit check:** Any auto-fill effect that can overwrite user input must check whether the user has manually edited the field since the last auto-fill trigger. Use a ref (not state) to track this to avoid infinite re-render loops.
+
+---
+
+## BUG-017 — SQL test files that expect a trigger RAISE EXCEPTION cannot be run as a single file with `supabase db query`
+
+- **Found in issue:** #33
+- **Severity:** Minor (test infrastructure — not a production bug)
+- **Affected files:** `__tests__/sql/issue-33-scenario7-trigger-provider-fee.sql`, `__tests__/sql/issue-33-scenario8-trigger-pricing-id.sql`
+- **Root cause:** When a SQL test file contains a `BEGIN` block that causes a trigger to `RAISE EXCEPTION`, the Supabase Management API returns HTTP 400 for the entire file and exits with code 1 — even if subsequent SELECT statements would have confirmed the correct behaviour. The API cannot continue after an exception mid-file.
+- **Wrong pattern:** Putting the trigger-blocked UPDATE and the verification SELECT in the same file — the API aborts on the exception and never runs the SELECT.
+- **Correct pattern:** Split trigger tests into two parts:
+  1. File (or block) that runs the UPDATE — expect exit code 1 (the trigger fires, this is the pass signal).
+  2. A separate inline `supabase db query --linked "SELECT ..."` to verify the data is unchanged.
+  - Alternatively, document in the test file's header that exit code 1 = PASS for the trigger test, and run the verification SELECT as a follow-up command in the QA script.
+- **Pre-submit check:** Any SQL test that intentionally expects a `RAISE EXCEPTION` from a trigger must NOT rely on statements after the failing block in the same file. Verify the negative case (data unchanged) in a separate query.
