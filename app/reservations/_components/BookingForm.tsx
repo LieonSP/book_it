@@ -641,7 +641,8 @@ export function BookingForm({
         rental_price:   parseFloat(rentalPrice),
         currency:       "EUR",
         provider_fee:   providerFee !== "" ? parseFloat(providerFee) : 0,
-        status:         "pending",
+        // Default to "confirmed" — most bookings created manually are already confirmed
+        status:         "confirmed",
         note:           note.trim()  || null,
       })
       .select("id")

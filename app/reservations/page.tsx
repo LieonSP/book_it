@@ -60,10 +60,11 @@ import { StatusBadge } from "@/components/book-it/status-badge"
 
 const LABELS = {
   pageTitle:          "Réservations",
-  newBookingButton:   "+ Nouvelle",
+  newBookingButton:   "Nouvelle",
 
   // Filter bar
   filterAllListings:  "Toutes propriétés",
+  filterAllYears:     "Toutes les années",
   filterAllMonths:    "Tous les mois",
 
   // Column headers (for desktop table view)
@@ -116,6 +117,7 @@ interface BookingRow {
   listing_name: string
   provider_name: string
   tenant_name:  string
+  note:         string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -186,7 +188,8 @@ function Toast({ message, type, onDismiss }: {
       role="status"
       aria-live="polite"
       className={[
-        "fixed top-4 left-1/2 -translate-x-1/2 z-50",
+        // top-[60px] pushes the toast below the ~56px page header so it never overlaps the logo
+        "fixed top-[60px] left-1/2 -translate-x-1/2 z-50",
         "flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium",
         "max-w-xs w-full animate-in fade-in slide-in-from-top-2",
         type === "success"
@@ -261,7 +264,17 @@ export default function ReservationsPage() {
 
   // Filter state
   const [filterListing, setFilterListing] = useState("")
+  // Year filter defaults to the current year — reduces noise when many years of data exist
+  const currentYear = String(new Date().getFullYear())
+  const [filterYear,    setFilterYear]    = useState(currentYear)
   const [filterMonth,   setFilterMonth]   = useState("")
+
+  // Reset month when year changes — avoids a stale "YYYY-MM" combo like "2025-05" showing
+  // in the month dropdown while the year is set to 2026.
+  function handleYearChange(year: string) {
+    setFilterYear(year)
+    setFilterMonth("")
+  }
 
   // Toast state
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null)
@@ -310,6 +323,7 @@ export default function ReservationsPage() {
           rental_price,
           provider_fee,
           status,
+          note,
           listings!inner(name),
           users!provider_id(first_name, last_name),
           tenants!inner(first_name, last_name)
@@ -340,6 +354,7 @@ export default function ReservationsPage() {
             tenant_name:  tenant
               ? `${(tenant as Record<string, string>).first_name ?? ""} ${(tenant as Record<string, string>).last_name ?? ""}`.trim()
               : "—",
+            note:         (r.note as string | null) ?? null,
           }
         })
 
@@ -389,15 +404,25 @@ export default function ReservationsPage() {
   // Derived: distinct months (formatted) for filter dropdown
   // -----------------------------------------------------------------------
 
+  // Distinct years derived from bookings data (descending — most recent first)
+  const yearOptions = useMemo(() => {
+    const years = Array.from(new Set(bookings.map((b) => b.check_in.slice(0, 4))))
+    return years.sort().reverse()
+  }, [bookings])
+
   const monthOptions = useMemo(() => {
-    // Collect distinct YYYY-MM keys, then sort chronologically
-    const keysSet = new Set(bookings.map((b) => monthKey(b.check_in)))
+    // Collect distinct YYYY-MM keys, optionally scoped to the selected year
+    const keysSet = new Set(
+      bookings
+        .filter((b) => !filterYear || b.check_in.startsWith(filterYear))
+        .map((b) => monthKey(b.check_in))
+    )
     const keys = Array.from(keysSet).sort()
     return keys.map((k) => ({
       value: k,
       label: formatMonth(k + "-01"),
     }))
-  }, [bookings])
+  }, [bookings, filterYear])
 
   // -----------------------------------------------------------------------
   // Derived: filtered bookings
@@ -405,14 +430,13 @@ export default function ReservationsPage() {
 
   const filteredBookings = useMemo(() => {
     return bookings.filter((b) => {
-      if (filterListing && b.listing_name !== filterListing) return false
-      if (filterMonth   && monthKey(b.check_in) !== filterMonth) return false
+      // Year filter: check_in starts with "YYYY" (e.g. "2026-05-10".startsWith("2026"))
+      if (filterYear    && !b.check_in.startsWith(filterYear))    return false
+      if (filterListing && b.listing_name !== filterListing)       return false
+      if (filterMonth   && monthKey(b.check_in) !== filterMonth)   return false
       return true
     })
-  }, [bookings, filterListing, filterMonth])
-
-  // Whether any filter is active (used to determine which empty state to show)
-  const hasActiveFilters = filterListing !== "" || filterMonth !== ""
+  }, [bookings, filterListing, filterMonth, filterYear])
 
   // -----------------------------------------------------------------------
   // Derived: bookings grouped by listing_name (owner view)
@@ -511,14 +535,16 @@ export default function ReservationsPage() {
         </div>
 
         {/* ---------------------------------------------------------------- */}
-        {/* Filter bar — 2 selects side by side                              */}
+        {/* Filter bar                                                        */}
+        {/* Row 1: Propriété (full width)                                     */}
+        {/* Row 2: Année + Mois side by side                                  */}
         {/* ---------------------------------------------------------------- */}
-        <div className="flex gap-2 mb-6">
-          {/* Propriété filter */}
+        <div className="flex flex-col gap-2 mb-6">
+          {/* Propriété filter — full width */}
           <select
             value={filterListing}
             onChange={(e) => setFilterListing(e.target.value)}
-            className="h-10 flex-1 rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary"
+            className="h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="">{LABELS.filterAllListings}</option>
             {listingOptions.map((name) => (
@@ -526,17 +552,31 @@ export default function ReservationsPage() {
             ))}
           </select>
 
-          {/* Mois filter — populated dynamically from data */}
-          <select
-            value={filterMonth}
-            onChange={(e) => setFilterMonth(e.target.value)}
-            className="h-10 flex-1 rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="">{LABELS.filterAllMonths}</option>
-            {monthOptions.map(({ value, label }) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
+          <div className="flex gap-2">
+            {/* Année filter — defaults to current year, scopes the month dropdown */}
+            <select
+              value={filterYear}
+              onChange={(e) => handleYearChange(e.target.value)}
+              className="h-10 flex-1 rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">{LABELS.filterAllYears}</option>
+              {yearOptions.map((year) => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+
+            {/* Mois filter — populated from months in the selected year */}
+            <select
+              value={filterMonth}
+              onChange={(e) => setFilterMonth(e.target.value)}
+              className="h-10 flex-1 rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">{LABELS.filterAllMonths}</option>
+              {monthOptions.map(({ value, label }) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* ---------------------------------------------------------------- */}
@@ -561,7 +601,7 @@ export default function ReservationsPage() {
           <div className="text-center py-16 flex flex-col items-center gap-3">
             <p className="text-sm text-neutral-500">{LABELS.emptyFiltered}</p>
             <button
-              onClick={() => { setFilterListing(""); setFilterMonth("") }}
+              onClick={() => { setFilterListing(""); setFilterYear(currentYear); setFilterMonth("") }}
               className="text-sm text-primary underline underline-offset-2 hover:text-primary-dark"
             >
               {LABELS.emptyResetFilters}
@@ -649,8 +689,9 @@ function BookingListRow({
         !isLast ? "border-b border-neutral-100" : "",
       ].join(" ")}
     >
-      {/* Left: tenant + listing (if shown) + dates */}
-      <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+      {/* Left: tenant + listing (if shown) + dates + provider + note */}
+      <div className="flex-1 min-w-0 flex flex-col gap-1">
+        {/* Top line: tenant name + status badge */}
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-semibold text-neutral-900 truncate">
             {booking.tenant_name}
@@ -673,10 +714,17 @@ function BookingListRow({
 
         {/* Provider name */}
         <span className="text-xs text-neutral-400">{booking.provider_name}</span>
+
+        {/* Note — shown when present; useful for providers preparing the property */}
+        {booking.note && (
+          <span className="text-xs text-neutral-500 italic line-clamp-2 mt-0.5">
+            {booking.note}
+          </span>
+        )}
       </div>
 
-      {/* Right: prices + edit action */}
-      <div className="flex items-center gap-3 md:gap-6 justify-between md:justify-end flex-shrink-0">
+      {/* Right: prices + edit — always right-aligned (justify-end on all sizes) */}
+      <div className="flex items-center gap-3 justify-end flex-shrink-0">
         {/* Prices */}
         <div className="flex flex-col gap-0.5 text-right">
           <span className="text-sm font-semibold text-neutral-900">
@@ -687,10 +735,10 @@ function BookingListRow({
           </span>
         </div>
 
-        {/* Edit icon — links to the edit page */}
+        {/* Edit icon — blue by default so it's clearly actionable */}
         <Link
           href={`/reservations/${booking.id}/modifier`}
-          className="h-8 w-8 flex items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 hover:text-primary hover:border-primary transition-colors"
+          className="h-8 w-8 flex items-center justify-center rounded-lg border border-primary text-primary hover:bg-primary hover:text-white transition-colors"
           aria-label={LABELS.editAction}
         >
           <Pencil className="h-4 w-4" />
