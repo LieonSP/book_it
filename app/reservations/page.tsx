@@ -24,7 +24,7 @@ import { Button } from "@/components/book-it/button"
 
 const LABELS = {
   pageTitle: "Réservations",
-  newBookingButton: "+ Nouvelle réservation",
+  newBookingButton: "Nouvelle réservation",
   emptyState: "Aucune réservation pour le moment.",
 } as const
 
