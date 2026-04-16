@@ -49,6 +49,7 @@ const LABELS = {
   proprieteSelect: "Sélectionner une propriété",
 
   prestataire: "Prestataire",
+  prestataireOptional: "(optionnel)",
   prestataireRequired: "Ce champ est obligatoire",
   prestataireEmptyOwner: "Aucun prestataire lié. Ajoutez-en un depuis le menu Prestataires.",
   prestataireSelect: "Sélectionner un prestataire",
@@ -82,6 +83,7 @@ const LABELS = {
 
   // Section 3 — Mission & Tarifs
   mission: "Mission",
+  missionOptional: "(optionnel)",
   missionRequired: "Ce champ est obligatoire",
   missionSelect: "Sélectionner une mission",
   missionHelper: "Suggestion basée sur la relation propriétaire/prestataire",
@@ -448,14 +450,18 @@ export function NouvelleReservationForm({ userId, userRole, firstName }: Props) 
 
     // Required field checks
     if (!listingId)       newErrors.listingId       = LABELS.proprieteRequired
-    if (!providerId)      newErrors.providerId      = LABELS.prestataireRequired
+    // Provider is required for providers (pre-filled as themselves) but optional for owners.
+    // WHY: an owner may want to record a booking before assigning a provider.
+    if (userRole !== "owner" && !providerId) newErrors.providerId = LABELS.prestataireRequired
     if (!source)          newErrors.source          = LABELS.sourceRequired
     if (!checkIn)         newErrors.checkIn         = LABELS.arriveeRequired
     if (!checkOut)        newErrors.checkOut        = LABELS.departRequired
     if (!nbPax)           newErrors.nbPax           = LABELS.nbVoyageursRequired
     if (!tenantFirstName) newErrors.tenantFirstName = LABELS.prenomRequired
     if (!tenantLastName)  newErrors.tenantLastName  = LABELS.nomRequired
-    if (!missionId)       newErrors.missionId       = LABELS.missionRequired
+    // Mission is optional for owners — a booking can exist without a mission assigned yet.
+    // For providers, mission remains required (they know what task they are performing).
+    if (userRole !== "owner" && !missionId) newErrors.missionId = LABELS.missionRequired
     if (!rentalPrice)     newErrors.rentalPrice     = LABELS.prixLocationRequired
 
     // Date logic: check_out must be strictly after check_in
@@ -561,25 +567,30 @@ export function NouvelleReservationForm({ userId, userRole, firstName }: Props) 
       }
 
       // ----------------------------------------------------------------
-      // Step 4 — INSERT booking_missions
+      // Step 4 — INSERT booking_missions (skipped if no mission selected)
+      // WHY: mission is optional for owners, so missionId may be empty.
+      // The bookings table has no direct mission column — missions live in
+      // the booking_missions junction table and can simply be omitted.
       // ----------------------------------------------------------------
-      const { error: missionError } = await supabase
-        .from("booking_missions")
-        .insert({
-          booking_id: booking.id,
-          mission_id: missionId,
-        })
+      if (missionId) {
+        const { error: missionError } = await supabase
+          .from("booking_missions")
+          .insert({
+            booking_id: booking.id,
+            mission_id: missionId,
+          })
 
-      if (missionError) {
-        // Rollback: delete booking (booking_missions CASCADE on booking delete)
-        // then delete the orphaned tenant.
-        // Uses a SECURITY DEFINER RPC for tenant delete (BUG-011) — see comment
-        // above. Booking delete is fine via direct .delete() because bookings_delete
-        // RLS allows the row's assigned provider to delete their own booking.
-        await supabase.from("bookings").delete().eq("id", booking.id)
-        await supabase.rpc("delete_orphaned_tenant", { p_tenant_id: tenant.id })
-        setSubmitError(LABELS.submitError)
-        return
+        if (missionError) {
+          // Rollback: delete booking (booking_missions CASCADE on booking delete)
+          // then delete the orphaned tenant.
+          // Uses a SECURITY DEFINER RPC for tenant delete (BUG-011) — see comment
+          // above. Booking delete is fine via direct .delete() because bookings_delete
+          // RLS allows the row's assigned provider to delete their own booking.
+          await supabase.from("bookings").delete().eq("id", booking.id)
+          await supabase.rpc("delete_orphaned_tenant", { p_tenant_id: tenant.id })
+          setSubmitError(LABELS.submitError)
+          return
+        }
       }
 
       // ----------------------------------------------------------------
@@ -598,8 +609,9 @@ export function NouvelleReservationForm({ userId, userRole, firstName }: Props) 
 
   const hasNoListings   = listings.length === 0
   const hasNoProviders  = userRole === "owner" && providers.length === 0
-  // Submit is blocked when the owner has no listings or no providers
-  const isSubmitBlocked = hasNoListings || hasNoProviders
+  // Submit is blocked only when there are no listings to choose from.
+  // Having no providers does NOT block submit — provider is optional for owners.
+  const isSubmitBlocked = hasNoListings
 
   // ------------------------------------------------------------------
   // Shared select class — applied to every native <select>
@@ -720,9 +732,15 @@ export function NouvelleReservationForm({ userId, userRole, firstName }: Props) 
 
               {/* ---- Prestataire --------------------------------------- */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-neutral-900">
-                  {LABELS.prestataire}
-                </label>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs font-semibold text-neutral-900">
+                    {LABELS.prestataire}
+                  </label>
+                  {/* Show "(optionnel)" hint for owners — providers are always pre-filled */}
+                  {userRole === "owner" && (
+                    <span className="text-xs text-neutral-400">{LABELS.prestataireOptional}</span>
+                  )}
+                </div>
                 {userRole === "provider" ? (
                   // Provider sees a disabled select pre-filled with their own name
                   <>
@@ -960,9 +978,15 @@ export function NouvelleReservationForm({ userId, userRole, firstName }: Props) 
 
               {/* ---- Mission ------------------------------------------ */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-neutral-900">
-                  {LABELS.mission}
-                </label>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs font-semibold text-neutral-900">
+                    {LABELS.mission}
+                  </label>
+                  {/* Show "(optionnel)" hint for owners — mission is optional for them */}
+                  {userRole === "owner" && (
+                    <span className="text-xs text-neutral-400">{LABELS.missionOptional}</span>
+                  )}
+                </div>
                 {missions.length === 0 ? (
                   <>
                     <select disabled className={selectCls("missionId")}>
