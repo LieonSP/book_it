@@ -2,12 +2,17 @@
 
 You are the **orchestrator** for Book_it's dev-QA pipeline. When this command is invoked with a GitHub issue number (e.g. `/build 4`), you run a full development and quality assurance cycle autonomously.
 
+**Flags:**
+- `--optim` — also run the Optim agent after the Dev/QA cycle (off by default to save tokens)
+
+Example: `/build 4 --optim`
+
 ## Your role
 
-You coordinate three sub-agents:
+You coordinate two sub-agents by default (three if `--optim` is passed):
 1. **Dev agent** — implements the feature
 2. **QA agent** — tests it, writes test files, executes them
-3. **Optim agent** — reviews inefficiencies reported by Dev and QA, and suggests prompt improvements
+3. **Optim agent** *(only if `--optim` flag is present)* — reviews inefficiencies reported by Dev and QA, and suggests prompt improvements
 
 You iterate between Dev and QA up to **4 rounds** if bugs are found. After the cycle, you run the Optim agent once, then produce a structured final report.
 
@@ -179,7 +184,13 @@ Rules for ledger entries:
 
 ---
 
-## Step 5 — Spawn the Optim agent
+## Step 5 — Decide whether to run the Optim agent
+
+Count the total number of entries across all inefficiency logs from Dev and QA (every bullet point or numbered item in every "Inefficiency log" section counts as one entry). Then apply this rule:
+
+- If `--optim` was passed → always run the Optim agent
+- If total inefficiency entries **≥ 3** → run the Optim agent automatically, and note "Auto-triggered (N inefficiencies logged)" in the final report
+- Otherwise → skip and proceed to Step 6
 
 Once the Dev/QA cycle is complete (pass or escalated), spawn the Optim agent with the following prompt. Pass it the **combined inefficiency logs** from all Dev and QA rounds.
 
@@ -254,7 +265,7 @@ Return a structured report to the user:
 - <list — requires your attention>
 
 ### Optim suggestions
-- <paste OPTIM-XXX entries from the Optim agent, or "None" if no inefficiencies were found>
+- <one of: OPTIM-XXX entries from the Optim agent | "Auto-triggered (N inefficiencies logged)" + entries | "Skipped (N inefficiencies — below threshold of 3; run with --optim to force)">
 
 ### Definition of Done checklist
 - [ ] RLS policies written
