@@ -46,12 +46,11 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import Image from "next/image"
 import Link from "next/link"
 import { Pencil, Plus } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { AppHeader } from "@/components/book-it/app-header"
 import { Button } from "@/components/book-it/button"
-import { LogoutButton } from "@/components/book-it/logout-button"
 import { StatusBadge } from "@/components/book-it/status-badge"
 
 // ---------------------------------------------------------------------------
@@ -491,29 +490,9 @@ export default function ReservationsPage() {
       )}
 
       {/* ------------------------------------------------------------------ */}
-      {/* Header                                                              */}
+      {/* Header — shared AppHeader (logo click → /dashboard).               */}
       {/* ------------------------------------------------------------------ */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 bg-white">
-        <div className="flex items-center gap-2.5">
-          <Image
-            src="/logo-transparent.png"
-            alt="Book_it"
-            width={32}
-            height={32}
-            className="rounded-sm"
-            priority
-          />
-          <p className="text-sm font-semibold text-neutral-900">
-            Book<span className="text-primary">_it</span>
-          </p>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="h-8 w-8 rounded-full bg-primary-light flex items-center justify-center">
-            <span className="text-xs font-semibold text-primary">{avatarLetter}</span>
-          </div>
-          <LogoutButton />
-        </div>
-      </header>
+      <AppHeader avatarLetter={avatarLetter} />
 
       {/* ------------------------------------------------------------------ */}
       {/* Main                                                                */}
@@ -613,7 +592,12 @@ export default function ReservationsPage() {
         {userRole === "owner" && filteredBookings.length > 0 && (
           <div className="flex flex-col gap-6">
             {groupedByListing.map(([listingName, rows]) => {
-              const total = rows.reduce((sum, b) => sum + b.rental_price, 0)
+              // Exclude cancelled bookings from the header totals.
+              // Cancelled rows still appear in the list below — we just don't
+              // want them inflating the price total or booking count shown to
+              // the owner in the section header.
+              const activeRows = rows.filter((b) => b.status !== "cancelled")
+              const total = activeRows.reduce((sum, b) => sum + b.rental_price, 0)
               return (
                 <section key={listingName}>
                   {/* Property group header */}
@@ -621,7 +605,7 @@ export default function ReservationsPage() {
                     <div className="flex items-baseline gap-2">
                       <h2 className="text-sm font-semibold text-neutral-900">{listingName}</h2>
                       <span className="text-xs text-neutral-500">
-                        {LABELS.bookingCount(rows.length)}
+                        {LABELS.bookingCount(activeRows.length)}
                       </span>
                     </div>
                     <span className="text-xs font-semibold text-neutral-700">

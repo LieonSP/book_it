@@ -39,12 +39,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import Image from "next/image"
 import { Lock } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { AppHeader } from "@/components/book-it/app-header"
 import { Button } from "@/components/book-it/button"
 import { InputField } from "@/components/book-it/input-field"
-import { LogoutButton } from "@/components/book-it/logout-button"
 import { StatusBadge } from "@/components/book-it/status-badge"
 
 // ---------------------------------------------------------------------------
@@ -830,29 +829,9 @@ export function BookingForm({
     <div className="min-h-screen bg-neutral-50">
 
       {/* ------------------------------------------------------------------ */}
-      {/* Header                                                              */}
+      {/* Header — shared AppHeader (logo click → /dashboard).               */}
       {/* ------------------------------------------------------------------ */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 bg-white">
-        <div className="flex items-center gap-2.5">
-          <Image
-            src="/logo-transparent.png"
-            alt="Book_it"
-            width={32}
-            height={32}
-            className="rounded-sm"
-            priority
-          />
-          <p className="text-sm font-semibold text-neutral-900">
-            Book<span className="text-primary">_it</span>
-          </p>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="h-8 w-8 rounded-full bg-primary-light flex items-center justify-center">
-            <span className="text-xs font-semibold text-primary">{avatarLetter}</span>
-          </div>
-          <LogoutButton />
-        </div>
-      </header>
+      <AppHeader avatarLetter={avatarLetter} />
 
       {/* ------------------------------------------------------------------ */}
       {/* Main — scrollable form body                                        */}

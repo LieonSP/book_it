@@ -20,12 +20,11 @@
  */
 
 import { redirect } from "next/navigation"
-import Image from "next/image"
 import Link from "next/link"
 import { CalendarDays, Building2, Users, BarChart2, ChevronRight } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { Card } from "@/components/book-it/card"
-import { LogoutButton } from "@/components/book-it/logout-button"
+import { AppHeader } from "@/components/book-it/app-header"
 
 // ---------------------------------------------------------------------------
 // Type definitions
@@ -106,38 +105,11 @@ export default async function DashboardPage() {
     <div className="min-h-screen bg-neutral-50">
 
       {/* ------------------------------------------------------------------ */}
-      {/* Header — logo on the left, user avatar on the right                */}
+      {/* Header — shared AppHeader component (logo + avatar + logout).      */}
+      {/* Clicking the logo on this page does nothing (already on /dashboard */}
+      {/* — the component handles that guard internally via usePathname).     */}
       {/* ------------------------------------------------------------------ */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 bg-white">
-        <div className="flex items-center gap-2.5">
-          <Image
-            src="/logo-transparent.png"
-            alt="Book_it"
-            width={32}
-            height={32}
-            className="rounded-sm"
-            priority
-          />
-          <p className="text-sm font-semibold text-neutral-900">
-            Book<span className="text-primary">_it</span>
-          </p>
-        </div>
-
-        {/* Right side: avatar + logout icon */}
-        <div className="flex items-center gap-1">
-          {/* Avatar — a coloured circle showing the first letter of the user's name */}
-          <div className="h-8 w-8 rounded-full bg-primary-light flex items-center justify-center">
-            <span className="text-xs font-semibold text-primary">{avatarLetter}</span>
-          </div>
-          {/*
-           * LogoutButton is a Client Component — it uses the browser Supabase
-           * client to call signOut() and then redirects to /login.
-           * It is safe to render inside this Server Component: Next.js
-           * handles the server/client boundary automatically here.
-           */}
-          <LogoutButton />
-        </div>
-      </header>
+      <AppHeader avatarLetter={avatarLetter} />
 
       {/* ------------------------------------------------------------------ */}
       {/* Main content — greeting + navigation cards                          */}
