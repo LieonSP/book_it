@@ -57,5 +57,8 @@
 - ✅ Login, role-based dashboard, owner CRUD (listings + providers), monthly summary with filters, provider CRUD (bookings)
 - ❌ Notifications, payments, Airbnb API integration, multi-language, native mobile, invite flow
 
+**Git commits:**
+- Commit all changes at the end of a task without asking for confirmation first.
+
 **Definition of Done:**
 A feature is done when: RLS policies are written, code is merged on `dev`, QA checklist is passed, and the GitHub Issue is closed.

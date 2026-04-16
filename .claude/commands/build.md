@@ -2,12 +2,17 @@
 
 You are the **orchestrator** for Book_it's dev-QA pipeline. When this command is invoked with a GitHub issue number (e.g. `/build 4`), you run a full development and quality assurance cycle autonomously.
 
+**Flags:**
+- `--optim` — also run the Optim agent after the Dev/QA cycle (off by default to save tokens)
+
+Example: `/build 4 --optim`
+
 ## Your role
 
-You coordinate three sub-agents:
+You coordinate two sub-agents by default (three if `--optim` is passed):
 1. **Dev agent** — implements the feature
 2. **QA agent** — tests it, writes test files, executes them
-3. **Optim agent** — reviews inefficiencies reported by Dev and QA, and suggests prompt improvements
+3. **Optim agent** *(only if `--optim` flag is present)* — reviews inefficiencies reported by Dev and QA, and suggests prompt improvements
 
 You iterate between Dev and QA up to **4 rounds** if bugs are found. After the cycle, you run the Optim agent once, then produce a structured final report.
 
@@ -20,7 +25,7 @@ Fetch the GitHub issue using:
 gh issue view <number> --repo LieonSP/book_it
 ```
 
-Extract: title, description, acceptance criteria, **test scenarios** (written by the Product Owner agent), definition of done, labels.
+Extract: title, description, acceptance criteria, **test scenarios** (written by the Product Owner agent), **user tests** (`## Tests utilisateur clés` section), definition of done, labels.
 
 > ⚠️ If the issue has no "Test scenarios" section, stop and tell the user to run `/product-owner <number>` first.
 
@@ -59,6 +64,17 @@ Implement the feature described in the issue provided. Return a detailed status 
 - Example of a good comment: `// We check the user's role here because different roles see different dashboards`
 - Example of a bad comment: `// Check role`
 - For SQL/RLS: explain what the policy allows and why it's structured that way
+- For any component file exceeding ~150 lines, add a section index comment block immediately after the imports, listing each logical section and its approximate starting line number. Example:
+  ```
+  // SECTION INDEX
+  // L1   — Imports
+  // L45  — Types & constants (LABELS, interfaces)
+  // L80  — Component: state & effects
+  // L200 — Component: validation & submit handler
+  // L310 — Render: Section 1
+  // L430 — Render: Section 2 & sticky footer
+  ```
+  Update this index whenever you modify the file.
 
 **For SQL migrations, always provide:**
 ```sql
@@ -68,6 +84,27 @@ Implement the feature described in the issue provided. Return a detailed status 
 -- DOWN (manual rollback only — keep commented out in this file)
 -- <rollback sql, each line prefixed with -->
 ```
+
+**After writing any SQL migration — update the schema snapshot:**
+If your implementation adds, removes, or modifies any table or column, update `.claude/schema-snapshot.sql` to reflect the change before submitting your status report. This file is read by the QA agent — if it's stale, QA will write broken fixtures.
+
+**When making a field optional (removing a required validation):**
+Trace the field from the form state all the way to every INSERT or UPDATE that uses it. For each typed column (uuid, numeric, date, enum…), explicitly convert the empty-string state to `null` or the appropriate zero value before the database call. Never assume the DB will coerce `""` — it will reject it with a type error. Example:
+```ts
+provider_id: providerId || null,  // uuid: "" → null
+rental_price: parseFloat(rentalPrice) || 0,  // numeric: "" → 0
+```
+
+**When writing RLS SELECT policies for any table a provider reads during data entry:**
+Ask "Can a provider with zero existing bookings read this row?" for every table in the flow (listings, missions, tenants, pricing…). If the answer relies on an existing booking, the policy is too restrictive — add an `owner_provider` arm:
+```sql
+OR EXISTS (
+  SELECT 1 FROM public.owner_provider op
+  WHERE op.provider_id = auth.uid()
+    AND op.owner_id = <table>.owner_id  -- or via owner_listing join for listings
+)
+```
+Also: for every `.insert(...).select(...).single()` in a multi-step flow, verify the acting role can SELECT the just-inserted row before any downstream rows are created. If the SELECT policy requires a later INSERT to exist first, it will silently return null and the flow will fail.
 
 **BEFORE submitting your status report — self-check against the bug ledger:**
 Re-read `.claude/qa-bug-ledger.md` and verify your code does not match any listed pattern. Include a section in your status report titled "Bug ledger self-check" listing each pattern ID (e.g. BUG-001) and whether your code is clear of it.
@@ -96,11 +133,13 @@ You are a QA engineer for Book_it. You have received a Dev agent status report a
 **You have access to:**
 - The full codebase
 - The enriched GitHub issue (test scenarios, acceptance criteria, edge cases)
+- A schema snapshot at `.claude/schema-snapshot.sql` — **read this before writing any SQL fixtures or test queries**. It lists every table, column, data type, and NOT NULL constraint. If you need a column that isn't in the snapshot, run `npx supabase db query --linked "SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = '<table>'"` and update the snapshot.
 - The **Supabase dev project** — all tests run against dev, never prod (project ref: `fzlqnjcfwpuomvldafwv`, already linked via Supabase CLI)
 - Vitest for running tests (`npx vitest run`)
-- The Supabase CLI for running SQL — **always use `--linked`, never try to find DATABASE_URL**:
+- The Supabase CLI for running SQL — ✅ **only these two forms are valid**:
   - Run a file: `npx supabase db query --linked -f path/to/file.sql`
-  - Run an inline query: `npx supabase db query --linked -- -c "SELECT ..."`
+  - Run an inline query: `npx supabase db query --linked "SELECT ..."`
+  - ❌ **Never use** `supabase db execute`, `supabase db push`, `psql`, `DATABASE_URL`, or `-- -c "..."` syntax — these will fail or are forbidden. If you find yourself typing one, stop and use the forms above.
   - ⚠️ CLI limitation: when a `.sql` file contains multiple SELECT statements, only the last result set is returned. Write one SELECT (or one logical test) per file when you need to inspect individual results.
 - The Vercel preview URL for the `dev` branch is stable and does not change between pushes: `https://book-it-git-dev-philippe-chambert-loirs-projects.vercel.app` — use this directly, do not run `vercel ls`
 
@@ -127,7 +166,7 @@ You are a QA engineer for Book_it. You have received a Dev agent status report a
    - Include it in your bug report so the user can test the UI manually
 
 **Your bug report must include:**
-- For each bug: file + line, description, severity (critical / major / minor)
+- For each bug: file + **exact** line number (e.g. `app/components/foo.tsx:551`), description, severity (critical / major / minor). Never use approximate line numbers ("~line N") — read the file to confirm the exact line before reporting.
 - Tests written (file paths)
 - Test results (pass / fail counts)
 - Overall verdict: ✅ PASS or ❌ FAIL
@@ -144,6 +183,7 @@ For every **new** bug pattern found (not already in the ledger), append an entry
 - **Root cause:** <what causes this class of mistake>
 - **Wrong pattern:** <code example of the mistake, if applicable>
 - **Correct pattern:** <code example of the fix>
+- **Location in issue:** `<file>:<exact_line>` (required when the pattern was found at a specific location)
 - **Pre-submit check:** <what the Dev agent should verify before submitting>
 ```
 
@@ -162,7 +202,13 @@ Rules for ledger entries:
 
 ---
 
-## Step 5 — Spawn the Optim agent
+## Step 5 — Decide whether to run the Optim agent
+
+Count the total number of entries across all inefficiency logs from Dev and QA (every bullet point or numbered item in every "Inefficiency log" section counts as one entry). Then apply this rule:
+
+- If `--optim` was passed → always run the Optim agent
+- If total inefficiency entries **≥ 3** → run the Optim agent automatically, and note "Auto-triggered (N inefficiencies logged)" in the final report
+- Otherwise → skip and proceed to Step 6
 
 Once the Dev/QA cycle is complete (pass or escalated), spawn the Optim agent with the following prompt. Pass it the **combined inefficiency logs** from all Dev and QA rounds.
 
@@ -237,7 +283,12 @@ Return a structured report to the user:
 - <list — requires your attention>
 
 ### Optim suggestions
-- <paste OPTIM-XXX entries from the Optim agent, or "None" if no inefficiencies were found>
+- <one of: OPTIM-XXX entries from the Optim agent | "Auto-triggered (N inefficiencies logged)" + entries | "Skipped (N inefficiencies — below threshold of 3; run with --optim to force)">
+
+### Tests utilisateur clés — à exécuter avant la mise en prod
+> Ouvrez l'URL de preview ci-dessous et cochez chaque test manuellement.
+
+<copy the items from the "## Tests utilisateur clés" section of the issue verbatim — if the section is absent or empty, write "⚠️ Aucun test utilisateur défini — relancer /po <number> pour les ajouter.">
 
 ### Definition of Done checklist
 - [ ] RLS policies written
@@ -246,6 +297,7 @@ Return a structured report to the user:
 - [ ] Vitest tests pass
 - [ ] All tests ran against Supabase dev (not prod)
 - [ ] Vercel preview URL: <url> (for manual UI review)
+- [ ] Tests utilisateur clés exécutés manuellement (see above)
 - [ ] GitHub issue moved to "In review" on Lieon's Kanban (issue stays open — closed only on prod deploy)
 ```
 
