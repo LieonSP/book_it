@@ -75,7 +75,9 @@ The improvement system has three layers — use them in order:
 Do not add new agents, new files, or new processes for improvement. The three layers are sufficient.
 
 **Dev coaching:**
-When implementing a non-obvious pattern — an RLS trick, a PostgREST quirk, a TypeScript pattern, a SQL concept — include a **💡 Learning note** of 2–3 sentences in plain French at the end of your response, explaining what just happened and why. Only when genuinely interesting. Never forced, never on routine changes.
+When implementing a non-obvious pattern — an RLS trick, a PostgREST quirk, a TypeScript pattern, a SQL concept — include a **💡 Learning note** of 2–3 sentences in plain English at the end of your response, explaining what just happened and why. Only when genuinely interesting. Never forced, never on routine changes.
+
+To avoid repeating topics: before writing a note, check `.claude/learning-log.md`. If the concept is already listed, skip it. If you write a note, append a one-line entry to that file: `- YYYY-MM-DD — <concept name>`.
 
 **Definition of Done:**
 A feature is done when: RLS policies are written, code is merged on `dev`, QA checklist is passed, and the GitHub Issue is closed.
