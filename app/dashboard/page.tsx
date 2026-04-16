@@ -15,13 +15,16 @@
  *
  * Layout:
  * - Header with logo + user avatar (first letter of first name)
- * - Grid of navigation cards — owners see 4, providers see 1
+ * - Grid of navigation cards — owners see 2 (Réservations + Synthèse), providers see 1
+ *   (Propriétés and Prestataires are temporarily hidden — commented out, not deleted)
  * - Each card links to a feature section of the app
  */
 
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { CalendarDays, Building2, Users, BarChart2, ChevronRight } from "lucide-react"
+// Building2 and Users are kept here (commented out) so re-enabling the hidden
+// tiles in OWNER_CARDS (issue #50) only requires uncommenting two lines below.
+import { CalendarDays, /* Building2, Users, */ BarChart2, ChevronRight } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { Card } from "@/components/book-it/card"
 import { AppHeader } from "@/components/book-it/app-header"
@@ -45,11 +48,20 @@ interface NavCard {
 // Navigation card definitions per role
 // ---------------------------------------------------------------------------
 
-/** Cards shown to property owners — they manage listings, providers, and summaries */
+/**
+ * Cards shown to property owners.
+ *
+ * Issue #50: "Propriétés" and "Prestataires" are temporarily hidden from the
+ * dashboard while those sections are not yet ready for use. They are commented
+ * out (not deleted) so they can be re-enabled by simply uncommenting.
+ *
+ * "Synthèse" appears immediately after "Réservations" — no visual gap because
+ * the flex/grid layout reflows naturally when the array has fewer items.
+ */
 const OWNER_CARDS: NavCard[] = [
   { label: "Réservations", href: "/reservations", Icon: CalendarDays },
-  { label: "Propriétés",   href: "/proprietes",   Icon: Building2 },
-  { label: "Prestataires", href: "/prestataires",  Icon: Users },
+  // { label: "Propriétés",   href: "/proprietes",   Icon: Building2 },   // hidden — issue #50
+  // { label: "Prestataires", href: "/prestataires",  Icon: Users },       // hidden — issue #50
   { label: "Synthèse",     href: "/synthese",      Icon: BarChart2 },
 ]
 
