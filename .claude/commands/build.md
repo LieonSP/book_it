@@ -88,6 +88,13 @@ Implement the feature described in the issue provided. Return a detailed status 
 **After writing any SQL migration — update the schema snapshot:**
 If your implementation adds, removes, or modifies any table or column, update `.claude/schema-snapshot.sql` to reflect the change before submitting your status report. This file is read by the QA agent — if it's stale, QA will write broken fixtures.
 
+**When making a field optional (removing a required validation):**
+Trace the field from the form state all the way to every INSERT or UPDATE that uses it. For each typed column (uuid, numeric, date, enum…), explicitly convert the empty-string state to `null` or the appropriate zero value before the database call. Never assume the DB will coerce `""` — it will reject it with a type error. Example:
+```ts
+provider_id: providerId || null,  // uuid: "" → null
+rental_price: parseFloat(rentalPrice) || 0,  // numeric: "" → 0
+```
+
 **BEFORE submitting your status report — self-check against the bug ledger:**
 Re-read `.claude/qa-bug-ledger.md` and verify your code does not match any listed pattern. Include a section in your status report titled "Bug ledger self-check" listing each pattern ID (e.g. BUG-001) and whether your code is clear of it.
 

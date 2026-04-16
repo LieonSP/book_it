@@ -236,7 +236,30 @@ The Dev agent reads this file before writing any code, and self-checks against e
 
 ---
 
-## BUG-012 — Auto-fill overwrites manually entered fee when mission or provider changes
+## BUG-012 — Empty string sent to a typed DB column when optional field is left blank
+
+- **Found in issue:** #36
+- **Severity:** Critical
+- **Affected file:** `app/reservations/nouvelle/nouvelle-reservation-form.tsx` (`handleSubmit`, bookings INSERT)
+- **Root cause:** Form state initialises string fields to `""`. When a field is made optional (validation check removed), the empty string is still passed directly to the INSERT. For typed columns (uuid, numeric, date…), Postgres rejects `""` with a type error. The form shows a generic error and the booking is never created.
+- **Wrong pattern:**
+  ```ts
+  const [providerId, setProviderId] = useState("")
+  // ...
+  await supabase.from("bookings").insert({ provider_id: providerId }) // "" is not a valid uuid
+  ```
+- **Correct pattern:** Coerce empty string to `null` (or the appropriate zero value) before every INSERT for any optional typed column:
+  ```ts
+  await supabase.from("bookings").insert({
+    provider_id: providerId || null,   // uuid — empty string → null
+    nb_pax:      parseInt(nbPax) || 0, // integer — keep 0 as valid
+  })
+  ```
+- **Pre-submit check:** After making any field optional (removing its required validation), trace the field all the way to every INSERT/UPDATE that uses it and verify the empty-string case is explicitly handled. Never rely on the DB to coerce `""` — it won't.
+
+---
+
+## BUG-013 — Auto-fill overwrites manually entered fee when mission or provider changes
 
 - **Found in issue:** #36
 - **Severity:** Major
