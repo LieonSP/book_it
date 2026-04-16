@@ -286,7 +286,38 @@ The Dev agent reads this file before writing any code, and self-checks against e
 
 ---
 
-## BUG-014 — Auto-fill overwrites manually entered fee when mission or provider changes
+## BUG-014 — tenants_select blocks provider from reading a just-inserted tenant (no booking yet)
+
+- **Found in issue:** #36
+- **Severity:** Critical
+- **Affected file:** `app/reservations/nouvelle/nouvelle-reservation-form.tsx` (`handleSubmit`, tenant INSERT step)
+- **Root cause:** In a multi-step INSERT flow (tenant → booking → booking_missions), a provider inserts the tenant in step 1. `tenants_select` only allows providers to read tenants via existing bookings (`b.provider_id = auth.uid() AND b.tenant_id = tenants.id`). But no booking exists yet at step 1. The `.insert(...).select("id").single()` INSERT succeeds, but the SELECT returns null — the provider can't read the row they just created. The form sees `!tenant`, shows a generic error, and the orphaned tenant is never deleted.
+- **Wrong pattern:** Multi-step INSERT + SELECT where RLS depends on a later INSERT that hasn't happened yet.
+- **Correct pattern:** For each table involved in a multi-step INSERT flow, verify that the acting role can SELECT the row immediately after INSERT — before any dependent rows are created. If not, extend the SELECT policy with an unconditional arm (e.g. `owner_provider` membership) that doesn't require downstream rows to exist.
+- **Pre-submit check:** For every `.insert(...).select(...).single()` in a multi-step flow, manually trace the SELECT RLS: can the acting role read that row right after INSERT, with no other rows yet created? If the SELECT policy references a table that only gets populated in a LATER step, it will silently return null.
+
+---
+
+## BUG-015 — listings_select restricts providers to listings with existing bookings only
+
+- **Found in issue:** #36
+- **Severity:** Critical
+- **Root cause:** `listings_select` allowed providers to read listings only via `bookings WHERE provider_id = auth.uid()`. A provider with no booking on a given listing couldn't see it — including on their very first booking attempt on that listing. The same class of bug as BUG-010 (missions) and BUG-008 (owner_listing), applied to `listings`.
+- **Wrong pattern:** Lookup/reference tables (listings, missions, etc.) that providers need for data entry restricted to only rows already linked via existing bookings.
+- **Correct pattern:** Extend SELECT policies on all lookup tables with an `owner_provider` arm:
+  ```sql
+  OR EXISTS (
+    SELECT 1 FROM owner_provider op
+    JOIN owner_listing ol ON ol.owner_id = op.owner_id
+    WHERE op.provider_id = auth.uid()
+      AND ol.listing_id = public.listings.id
+  )
+  ```
+- **Pre-submit check:** For every table a provider reads during data entry (listings, missions, pricing, tenants…), ask: "Can a provider with zero existing bookings still read the rows they need?" If the answer relies on existing bookings, the policy is too restrictive.
+
+---
+
+## BUG-016 — Auto-fill overwrites manually entered fee when mission or provider changes
 
 - **Found in issue:** #36
 - **Severity:** Major

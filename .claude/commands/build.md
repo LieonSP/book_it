@@ -25,7 +25,7 @@ Fetch the GitHub issue using:
 gh issue view <number> --repo LieonSP/book_it
 ```
 
-Extract: title, description, acceptance criteria, **test scenarios** (written by the Product Owner agent), definition of done, labels.
+Extract: title, description, acceptance criteria, **test scenarios** (written by the Product Owner agent), **user tests** (`## Tests utilisateur clés` section), definition of done, labels.
 
 > ⚠️ If the issue has no "Test scenarios" section, stop and tell the user to run `/product-owner <number>` first.
 
@@ -94,6 +94,17 @@ Trace the field from the form state all the way to every INSERT or UPDATE that u
 provider_id: providerId || null,  // uuid: "" → null
 rental_price: parseFloat(rentalPrice) || 0,  // numeric: "" → 0
 ```
+
+**When writing RLS SELECT policies for any table a provider reads during data entry:**
+Ask "Can a provider with zero existing bookings read this row?" for every table in the flow (listings, missions, tenants, pricing…). If the answer relies on an existing booking, the policy is too restrictive — add an `owner_provider` arm:
+```sql
+OR EXISTS (
+  SELECT 1 FROM public.owner_provider op
+  WHERE op.provider_id = auth.uid()
+    AND op.owner_id = <table>.owner_id  -- or via owner_listing join for listings
+)
+```
+Also: for every `.insert(...).select(...).single()` in a multi-step flow, verify the acting role can SELECT the just-inserted row before any downstream rows are created. If the SELECT policy requires a later INSERT to exist first, it will silently return null and the flow will fail.
 
 **BEFORE submitting your status report — self-check against the bug ledger:**
 Re-read `.claude/qa-bug-ledger.md` and verify your code does not match any listed pattern. Include a section in your status report titled "Bug ledger self-check" listing each pattern ID (e.g. BUG-001) and whether your code is clear of it.
@@ -274,6 +285,11 @@ Return a structured report to the user:
 ### Optim suggestions
 - <one of: OPTIM-XXX entries from the Optim agent | "Auto-triggered (N inefficiencies logged)" + entries | "Skipped (N inefficiencies — below threshold of 3; run with --optim to force)">
 
+### Tests utilisateur clés — à exécuter avant la mise en prod
+> Ouvrez l'URL de preview ci-dessous et cochez chaque test manuellement.
+
+<copy the items from the "## Tests utilisateur clés" section of the issue verbatim — if the section is absent or empty, write "⚠️ Aucun test utilisateur défini — relancer /po <number> pour les ajouter.">
+
 ### Definition of Done checklist
 - [ ] RLS policies written
 - [ ] Code commented in English for beginners
@@ -281,6 +297,7 @@ Return a structured report to the user:
 - [ ] Vitest tests pass
 - [ ] All tests ran against Supabase dev (not prod)
 - [ ] Vercel preview URL: <url> (for manual UI review)
+- [ ] Tests utilisateur clés exécutés manuellement (see above)
 - [ ] GitHub issue moved to "In review" on Lieon's Kanban (issue stays open — closed only on prod deploy)
 ```
 
