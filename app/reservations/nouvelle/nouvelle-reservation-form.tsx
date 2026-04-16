@@ -261,23 +261,42 @@ export function NouvelleReservationForm({ userId, userRole, firstName }: Props) 
           if (opts.length === 1) setListingId(opts[0].id)
         }
       } else {
-        // Provider: fetch listings of owners they work for
-        // owner_provider gives us the owner_ids → owner_listing gives us listing_ids
-        const { data } = await supabase
+        // Provider: fetch listings belonging to owners they work for.
+        //
+        // WHY two steps instead of a nested embed:
+        // owner_provider and owner_listing share an owner_id column but have no
+        // direct FK between them — both reference users.id independently.
+        // PostgREST requires a direct FK to resolve an embed; without one it
+        // silently returns empty rows. We split into two explicit queries instead.
+
+        // Step 1 — get the owner_ids this provider works for
+        const { data: ownerRows } = await supabase
           .from("owner_provider")
-          .select("owner_id, owner_listing(listing_id, listings(id, name))")
+          .select("owner_id")
           .eq("provider_id", userId)
 
-        if (data) {
+        if (!ownerRows || ownerRows.length === 0) {
+          setListings([])
+          return
+        }
+
+        const ownerIds = ownerRows.map((r) => r.owner_id)
+
+        // Step 2 — get listings for those owners.
+        // owner_listing_select RLS was extended in migration 20260415000000 to
+        // allow providers to read rows for owners they work with.
+        const { data: listingRows } = await supabase
+          .from("owner_listing")
+          .select("listing_id, listings(id, name)")
+          .in("owner_id", ownerIds)
+
+        if (listingRows) {
           const opts: ListingOption[] = []
-          data.forEach((opRow) => {
-            const olRows = Array.isArray(opRow.owner_listing) ? opRow.owner_listing : []
-            olRows.forEach((olRow) => {
-              const listing = Array.isArray(olRow.listings) ? olRow.listings[0] : olRow.listings
-              if (listing && !opts.find((o) => o.id === listing.id)) {
-                opts.push({ id: listing.id, name: listing.name })
-              }
-            })
+          listingRows.forEach((row) => {
+            const listing = Array.isArray(row.listings) ? row.listings[0] : row.listings
+            if (listing && !opts.find((o) => o.id === listing.id)) {
+              opts.push({ id: listing.id, name: listing.name })
+            }
           })
           setListings(opts)
           if (opts.length === 1) setListingId(opts[0].id)
