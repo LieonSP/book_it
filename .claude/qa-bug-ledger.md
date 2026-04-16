@@ -259,7 +259,34 @@ The Dev agent reads this file before writing any code, and self-checks against e
 
 ---
 
-## BUG-013 — Auto-fill overwrites manually entered fee when mission or provider changes
+## BUG-013 — PostgREST embed silently returns empty when two tables share a column reference but have no direct FK
+
+- **Found in issue:** #36
+- **Severity:** Critical
+- **Affected file:** `app/reservations/nouvelle/nouvelle-reservation-form.tsx` (provider `fetchListings`, ~line 264)
+- **Root cause:** `owner_provider` and `owner_listing` both have an `owner_id` column that is a FK to `users.id`, but there is no direct FK between `owner_provider` and `owner_listing`. PostgREST requires a direct FK to resolve an embedded join. Without one, the embed silently returns empty rows — no error, no warning, just `[]`.
+- **Wrong pattern:**
+  ```ts
+  // owner_provider has no FK to owner_listing — embed silently returns []
+  supabase.from("owner_provider")
+    .select("owner_id, owner_listing(listing_id, listings(id, name))")
+    .eq("provider_id", userId)
+  ```
+- **Correct pattern:** Split into two explicit queries joined in JavaScript:
+  ```ts
+  // Step 1: get owner_ids
+  const { data: ownerRows } = await supabase
+    .from("owner_provider").select("owner_id").eq("provider_id", userId)
+  // Step 2: get listings for those owners
+  const { data: listingRows } = await supabase
+    .from("owner_listing").select("listing_id, listings(id, name)")
+    .in("owner_id", ownerRows.map(r => r.owner_id))
+  ```
+- **Pre-submit check:** Before writing any PostgREST nested embed (`table1.select("table2(...)")`), verify that a direct FK exists between `table1` and `table2` in the schema. If the two tables only share a common reference (both FK to the same third table), PostgREST cannot resolve the join — use a two-step query instead.
+
+---
+
+## BUG-014 — Auto-fill overwrites manually entered fee when mission or provider changes
 
 - **Found in issue:** #36
 - **Severity:** Major
