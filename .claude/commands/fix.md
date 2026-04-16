@@ -71,6 +71,57 @@ git push origin dev
 
 ---
 
+## Step 4b — Sync prod deployment checklist (migrations only)
+
+**Run this step only if the fix created or modified one or more SQL migration files.**
+
+### 4b-1 — Post a migration addendum comment
+
+Post a new comment on the issue with the full details of every migration included in this fix:
+
+```
+gh issue comment <number> --repo LieonSP/book_it --body "$(cat <<'EOF'
+## 🗄️ Migrations — prod deployment addendum
+
+The following migration(s) were added as part of this fix and **must be applied on prod** before the feature can be used:
+
+| File | Description |
+|------|-------------|
+| `<filename>.sql` | <one-line description of what it does> |
+| … |
+
+### How to apply
+```
+npx supabase link --project-ref rlylrmtysxkpdbhvxrvq
+npx supabase db push --linked
+npx supabase link --project-ref fzlqnjcfwpuomvldafwv
+```
+
+> Re-link to dev after pushing to prod.
+EOF
+)"
+```
+
+Note the URL of this new comment — you will need it in the next sub-step.
+
+### 4b-2 — Update the existing prod deployment checklist
+
+Find the existing prod deployment checklist comment posted by `/build` (it contains a "## 🚀 Prod deployment checklist" heading). Get its comment ID:
+
+```
+gh api repos/LieonSP/book_it/issues/<number>/comments --jq '.[] | select(.body | contains("Prod deployment checklist")) | .id'
+```
+
+Edit that comment to:
+1. Append the new migration file name(s) to the "Migrations to run on prod" section (or create that section if it doesn't exist yet).
+2. Add a reference line pointing to the addendum comment: `> Migration details: <addendum comment URL>`
+
+```
+gh api repos/LieonSP/book_it/issues/comments/<comment-id> -X PATCH -f body="<updated body>"
+```
+
+---
+
 ## Step 5 — Propose prevention
 
 For each bug fixed, analyse **where in the pipeline it should have been caught** and what would have prevented it. Work through these three layers in order:
