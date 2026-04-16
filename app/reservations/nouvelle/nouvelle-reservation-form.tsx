@@ -1035,10 +1035,6 @@ export function NouvelleReservationForm({ userId, userRole, firstName }: Props) 
                         <option key={m.id} value={m.id}>{m.label}</option>
                       ))}
                     </select>
-                    {/* Helper text about the mission suggestion logic */}
-                    {!errors.missionId && (
-                      <p className="text-xs text-neutral-500">{LABELS.missionHelper}</p>
-                    )}
                     {errors.missionId && (
                       <p className="text-xs text-error">{errors.missionId}</p>
                     )}
