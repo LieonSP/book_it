@@ -538,7 +538,9 @@ export function NouvelleReservationForm({ userId, userRole, firstName }: Props) 
         .from("bookings")
         .insert({
           listing_id:     listingId,
-          provider_id:    providerId,
+          // Convert empty string to null — provider is optional for owners.
+          // The column is a UUID: sending "" would cause a Postgres type error.
+          provider_id:    providerId || null,
           tenant_id:      tenant.id,
           pricing_id:     null,  // not used in this form — fee is entered manually
           check_in:       checkIn,
