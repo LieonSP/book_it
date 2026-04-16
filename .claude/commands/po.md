@@ -58,6 +58,7 @@ Before drafting anything, think through the following:
 - Are there role-based access implications (owner vs provider) that aren't addressed?
 - Are there data model decisions that need to be made before development can start?
 - Are there business process or workflow questions the designer will need answered before designing?
+- **For every field that appears required in the spec: is it required for all roles, or only some?** A field that is mandatory for a provider may be optional for an owner (e.g. provider field on a booking), and vice versa. If the spec does not explicitly state per-role optionality, ask before writing acceptance criteria.
 
 **Risks:**
 - Could any design decision here cause painful refactoring later?
