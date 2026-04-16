@@ -329,10 +329,14 @@ export function NouvelleReservationForm({ userId, userRole, firstName }: Props) 
     }
 
     async function fetchProviders() {
-      // Owners: fetch providers they manage via owner_provider junction
+      // Owners: fetch providers they manage via owner_provider junction.
+      // WHY "users!provider_id": owner_provider has two FKs to users (owner_id
+      // and provider_id). Without a hint, PostgREST cannot resolve the join and
+      // returns null, leaving the provider list empty. The hint tells PostgREST
+      // to follow provider_id → users, not owner_id → users.
       const { data } = await supabase
         .from("owner_provider")
-        .select("provider_id, users(id, first_name, last_name)")
+        .select("provider_id, users!provider_id(id, first_name, last_name)")
         .eq("owner_id", userId)
 
       if (data) {
