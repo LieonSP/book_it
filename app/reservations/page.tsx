@@ -592,7 +592,12 @@ export default function ReservationsPage() {
         {userRole === "owner" && filteredBookings.length > 0 && (
           <div className="flex flex-col gap-6">
             {groupedByListing.map(([listingName, rows]) => {
-              const total = rows.reduce((sum, b) => sum + b.rental_price, 0)
+              // Exclude cancelled bookings from the header totals.
+              // Cancelled rows still appear in the list below — we just don't
+              // want them inflating the price total or booking count shown to
+              // the owner in the section header.
+              const activeRows = rows.filter((b) => b.status !== "cancelled")
+              const total = activeRows.reduce((sum, b) => sum + b.rental_price, 0)
               return (
                 <section key={listingName}>
                   {/* Property group header */}
@@ -600,7 +605,7 @@ export default function ReservationsPage() {
                     <div className="flex items-baseline gap-2">
                       <h2 className="text-sm font-semibold text-neutral-900">{listingName}</h2>
                       <span className="text-xs text-neutral-500">
-                        {LABELS.bookingCount(rows.length)}
+                        {LABELS.bookingCount(activeRows.length)}
                       </span>
                     </div>
                     <span className="text-xs font-semibold text-neutral-700">
