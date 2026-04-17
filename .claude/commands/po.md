@@ -30,6 +30,12 @@ Run all of the following in parallel:
 gh issue view <number> --repo LieonSP/book_it
 ```
 
+> **Image attachments:** If the issue body contains `github.com/user-attachments/` URLs, do NOT use WebFetch — it will 404. Download them autonomously using the GitHub auth token:
+> ```bash
+> curl -sL -o /tmp/issue_attachment_<n>.png "<url>" -H "Authorization: token $(gh auth token)"
+> ```
+> Then read the downloaded file with the Read tool to view the image.
+
 **1b. Read ALL other issues for context and dependencies:**
 ```
 gh issue list --repo LieonSP/book_it --state all --limit 50
@@ -92,7 +98,7 @@ I will not enrich the issue until you answer these questions.
 - This applies to the initial question list AND to any follow-up questions asked in subsequent messages
 - Never ask unnumbered questions — the user replies by number and expects a consistent format
 
-Wait for the user's answers before proceeding to Step 4. If there are no ambiguities, no conflicts, and no risks — state that clearly and ask the user to confirm you can proceed.
+Wait for the user's answers before proceeding to Step 4. If there are no ambiguities, no conflicts, and no risks — state that clearly and proceed directly to Step 4 without waiting for confirmation.
 
 ---
 
@@ -140,6 +146,14 @@ As a [owner / provider / admin], I want to [action] so that [benefit].
 
 <add as many scenarios as needed — cover happy path, error path, and access control>
 
+## Tests utilisateur clés
+
+> Tests manuels à exécuter dans le navigateur avant toute mise en prod. Maximum 5. Ne couvrez que les parcours critiques — pas tout.
+
+- [ ] **<nom court>** — <description en 1 phrase : qui fait quoi, sur quel écran, résultat attendu>
+- [ ] **<nom court>** — <idem>
+- [ ] ...
+
 ## Definition of Done
 - [ ] RLS policies written and tested (if applicable)
 - [ ] Code commented in English for beginners
@@ -155,6 +169,13 @@ As a [owner / provider / admin], I want to [action] so that [benefit].
 - Label each scenario: `SQL`, `Vitest`, or `both`
 - **Every dynamic dropdown or list that loads data from the DB gets its own scenario** — verify that it returns a non-empty result for a user who has data, and an empty result for a user who has none. Do not assume data loading is implicitly covered by a happy-path submit scenario: a form can submit successfully in a mocked test even when the real query is broken. Write the data-loading check as a separate, explicit scenario marked `Vitest against real DB` (not mocked).
 
+**Rules for writing user tests (`## Tests utilisateur clés`):**
+- Maximum 5 items — be ruthless about what's truly critical
+- Each test is a single sentence: role + action + expected result (e.g. "En tant que propriétaire, je crée une réservation et elle apparaît dans la liste")
+- Cover: golden path for the main user action, the most likely error path, and any cross-role boundary if relevant
+- Do NOT duplicate automated test scenarios — these are manual smoke tests, not regression tests
+- Write them in French (matching the UI language)
+
 ---
 
 ## Step 5 — Update GitHub and decide next step
@@ -169,12 +190,12 @@ Add a comment:
 gh issue comment <number> --repo LieonSP/book_it --body "✅ Issue enriched by Product Owner agent."
 ```
 
-**Assess whether this issue requires a screen design.**
+**Assess whether this issue requires a screen design and act immediately — do not ask the user.**
 
-Issues that typically require design: new screens, UI changes, new user-facing flows.
-Issues that typically do not: schema migrations, RLS policies, backend logic, bug fixes with no UI change, data-only tasks.
+Issues that require design: new screens, UI changes, new user-facing flows.
+Issues that do not: schema migrations, RLS policies, backend logic, bug fixes with no UI change, data-only tasks.
 
-Based on your reading of the issue, form a recommendation, then ask the user:
+Report your decision and trigger the next step without waiting for confirmation:
 
 ```
 ## Product Owner Report — Issue #<number>: <title>
@@ -185,17 +206,11 @@ Based on your reading of the issue, form a recommendation, then ask the user:
 - Edge cases documented: <count>
 - Issue updated on GitHub: ✅
 
----
-
-**Does this issue require a screen design?**
-
-My assessment: <Yes / No> — <one sentence reason>.
-
-- Reply **yes** → I will trigger `/designer <number>`
-- Reply **no** → I will trigger `/build <number>` directly
+**Design needed:** <Yes / No> — <one sentence reason>.
+**Next step:** triggering `/designer <number>` / `/build <number>`
 ```
 
-Wait for the user's answer, then trigger the appropriate next step. Do not proceed without confirmation.
+Then immediately invoke the appropriate skill: `/designer <number>` if design is needed, `/build <number>` if not.
 
 ---
 
@@ -272,18 +287,64 @@ Then immediately invoke the build skill:
 
 **If the build prompt has gaps or issues:**
 
-Do NOT trigger build. Report to the user with numbered findings:
+First, classify each gap:
+
+- **Self-contained fix** — a gap that can be resolved with a code correction (missing logic, wrong condition, renamed variable, omitted clause) without any design or product decision. You have all the information needed to write the fix yourself.
+- **Requires human input** — a gap that involves a design choice, a product tradeoff, an ambiguous spec, or missing information only the user can provide.
+
+**If ALL gaps are self-contained fixes:**
+
+Patch the build prompt yourself:
+1. Write the corrected build prompt (same structure, gaps fixed inline)
+2. Delete the old build prompt comment and post the corrected one:
+```
+gh issue comment <number> --repo LieonSP/book_it --body "<corrected build prompt>"
+```
+3. Post approval:
+```
+gh issue comment <number> --repo LieonSP/book_it --body "✅ Design reviewed by Product Owner. Minor gaps auto-fixed — build prompt patched and approved. Ready for /build."
+```
+4. Report to the user what you fixed, then trigger build:
+
+```
+## Product Owner — Design Review: Issue #<number>: <title>
+
+### Verdict: AUTO-FIXED ✅
+
+The build prompt had self-contained gaps that were corrected automatically:
+
+1. <what was wrong — one sentence>
+   **Fix applied:** <what was changed — one sentence>
+
+- Acceptance criteria: all covered (after fix)
+- Edge cases: all addressed (after fix)
+- RLS requirement: clearly specified
+- Scope: no creep, no omissions
+
+**Next step:** `/build <number>` triggered automatically.
+```
+
+Then immediately invoke the build skill:
+```
+/build <number>
+```
+
+**If ANY gap requires human input:**
+
+Do NOT trigger build. Report to the user with numbered findings. Separate auto-fixable items from blockers:
 
 ```
 ## Product Owner — Design Review: Issue #<number>: <title>
 
 ### Verdict: NEEDS REVISION ⚠️
 
-The build prompt has the following issues that must be resolved before build:
+The build prompt has issues that require your input before build can start:
 
-1. <gap or risk — be specific, reference the acceptance criterion or edge case it fails>
-2. <gap or risk>
+1. <gap requiring human decision — be specific, reference the acceptance criterion or edge case it fails>
+2. <gap>
 ...
+
+<If there are also self-contained fixes, list them here but do NOT apply them yet — wait for the user to resolve the blockers first, then fix everything in one pass.>
 
 **Next step:** address these points, then re-run `/po <number> design-review`.
 ```
