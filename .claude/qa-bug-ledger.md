@@ -353,3 +353,17 @@ The Dev agent reads this file before writing any code, and self-checks against e
   2. A separate inline `supabase db query --linked "SELECT ..."` to verify the data is unchanged.
   - Alternatively, document in the test file's header that exit code 1 = PASS for the trigger test, and run the verification SELECT as a follow-up command in the QA script.
 - **Pre-submit check:** Any SQL test that intentionally expects a `RAISE EXCEPTION` from a trigger must NOT rely on statements after the failing block in the same file. Verify the negative case (data unchanged) in a separate query.
+
+---
+
+## BUG-018 — Empty state shown even on initial load when owner has no bookings: "Réinitialiser les filtres" CTA is misleading
+
+- **Found in issue:** #6
+- **Severity:** Minor (UX / copy bug)
+- **Affected file:** `app/synthese/page.tsx`, line 516–526
+- **Root cause:** The empty state renders the same message ("Aucune réservation pour ces filtres.") and "Réinitialiser les filtres" CTA whether the owner has genuinely no bookings at all, or merely has no bookings matching the current filters. When an owner has zero bookings, the reset button is pointless — clicking it changes nothing. This creates a confusing UX for new owners.
+- **Wrong pattern:** A single empty-state branch covering both "no data exists" and "filters produce no match".
+- **Correct pattern:** Distinguish two cases:
+  1. `bookings.length === 0` → "Vous n'avez aucune réservation." (no reset button)
+  2. `filteredBookings.length === 0 && bookings.length > 0` → "Aucune réservation pour ces filtres." + reset button
+- **Pre-submit check:** For every empty state on a filtered list, ask: "Could this screen appear on first use with zero data?" If yes, write two separate empty-state branches — one for "no data" and one for "filters active, no match".
