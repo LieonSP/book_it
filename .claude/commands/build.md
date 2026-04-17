@@ -7,6 +7,21 @@ You are the **orchestrator** for Book_it's dev-QA pipeline. When this command is
 
 Example: `/build 4 --optim`
 
+## Before you start — remind the user
+
+At the very beginning of every `/build` run, before doing anything else, output this message to the user:
+
+> ⚠️ **Prevent sleep during this build:**
+> Run this in a terminal tab and leave it open:
+> ```
+> caffeinate -i
+> ```
+> When the build is done, stop it with **Ctrl+C** in that tab.
+
+Then proceed with Step 1.
+
+---
+
 ## Your role
 
 You coordinate two sub-agents by default (three if `--optim` is passed):
@@ -365,3 +380,29 @@ git push origin dev
 ```
 
 Include the commit SHA in the final report so the user can reference it.
+
+---
+
+## Step 7 — Auto-deploy risk assessment
+
+After committing, assess the risk of deploying to prod **right now**, and act without asking the user.
+
+**Risk score — count how many of these apply:**
+- [ ] Includes a DB schema migration (ADD/DROP column, new table, ALTER type) → +3
+- [ ] Includes a DATA migration (UPDATE/DELETE on existing rows) → +4
+- [ ] Removes or changes an existing RLS policy (as opposed to adding a new one) → +2
+- [ ] Requires a new environment variable on Vercel prod → +2
+- [ ] Has a manual step listed in the prod checklist → +2
+- [ ] Rollback is destructive or irreversible → +2
+
+**Decision rule (permissive — we deploy by default):**
+- Score **0–2** → **AUTO-DEPLOY**: trigger `/deploy <number>` immediately, note "Auto-deployed (score: N)" in the report
+- Score **3–4** → **AUTO-DEPLOY with warning**: trigger `/deploy <number>`, but flag the specific risks in the report so the user is aware
+- Score **≥ 5** → **HOLD**: do not deploy, explain the risks, tell the user to run `/deploy <number>` manually after reviewing
+
+Add one line to the final report:
+```
+### Deploy
+- Risk score: N — <AUTO-DEPLOYED / AUTO-DEPLOYED ⚠️ see risks below / HELD — manual deploy required>
+- <risk items that contributed to the score, or "None">
+```
