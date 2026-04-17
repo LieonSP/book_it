@@ -23,21 +23,24 @@
  *
  * SECTION INDEX (approximate line numbers):
  *   ~60   — LABELS constant (all French UI strings)
- *   ~90   — TypeScript interfaces
- *   ~120  — Helpers (formatPrice, formatMonthLabel)
- *   ~145  — Main component + state
- *   ~220  — Data fetch effect (mount only)
- *   ~310  — Derived: filter options
- *   ~370  — Derived: filtered bookings + computed metrics
- *   ~430  — Loading state render
- *   ~445  — Main render
+ *   ~95   — TypeScript interfaces (BookingRow, ListingOption, ProviderOption,
+ *            ListingSummary, ProviderSummary)
+ *   ~130  — Helpers (formatPrice, formatMonthLabel)
+ *   ~155  — Main component + state
+ *   ~230  — Data fetch effect (mount only)
+ *   ~320  — Derived: filter options
+ *   ~380  — Derived: filtered bookings
+ *   ~400  — Derived: per-listing summaries
+ *   ~420  — Derived: per-provider summaries
+ *   ~450  — Derived: grandTotal, moyenneMensuelle, totalPresta
+ *   ~470  — Loading state render
+ *   ~485  — Main render: header, filters, empty states, report card
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { AppHeader } from "@/components/book-it/app-header"
-import { Card } from "@/components/book-it/card"
 
 // ---------------------------------------------------------------------------
 // All user-facing strings — never hardcoded inline in JSX.
@@ -45,22 +48,23 @@ import { Card } from "@/components/book-it/card"
 // ---------------------------------------------------------------------------
 
 const LABELS = {
-  pageTitle:         "Synthèse",
-  filterAllMonths:   "Tous les mois",
-  filterAllListings: "Toutes propriétés",
-  filterAllProviders: "Tous prestataires",
-  /** "X% du total annuel" shown below each property name */
-  pctDuTotal:        (pct: number) => `${pct}% du total annuel`,
-  /** "Total 2026" shown in the summary footer */
-  totalLabel:        (year: string) => `Total ${year}`,
-  moyenneMensuelle:  "Moy. mensuelle",
-  fraisPresta:       "Frais presta",
+  pageTitle:           "Synthèse",
+  filterAllMonths:     "Tous les mois",
+  filterAllListings:   "Toutes propriétés",
+  filterAllProviders:  "Tous prestataires",
+  /** "Total location 2026" shown in the properties total bar */
+  totalLabel:          (year: string) => `Total location ${year}`,
+  moyenneMensuelle:    "Moy. mensuelle",
+  /** Header of the providers section in the report card */
+  prestatairesSection: "Prestataires",
+  /** Label in the providers total bar */
+  totalPrestataires:   "Total prestataires",
   /** Empty state when owner has zero bookings at all */
-  emptyNoBookings:   "Vous n'avez aucune réservation pour le moment.",
+  emptyNoBookings:     "Vous n'avez aucune réservation pour le moment.",
   /** Empty state when filters produce no results (but bookings exist) */
-  emptyFiltered:     "Aucune réservation pour ces filtres.",
-  resetFilters:      "Réinitialiser les filtres",
-  loading:           "Chargement…",
+  emptyFiltered:       "Aucune réservation pour ces filtres.",
+  resetFilters:        "Réinitialiser les filtres",
+  loading:             "Chargement…",
 } as const
 
 // ---------------------------------------------------------------------------
@@ -100,6 +104,14 @@ interface ListingSummary {
   listing_name: string
   /** SUM(rental_price) for this listing after filters */
   total:        number
+}
+
+/** Per-provider aggregation — one row in the provider section. */
+interface ProviderSummary {
+  provider_id:   string
+  provider_name: string
+  /** SUM(provider_fee) for non-cancelled bookings matching active filters */
+  fee:           number
 }
 
 // ---------------------------------------------------------------------------
@@ -377,7 +389,36 @@ export default function SynthesePage() {
   }, [filteredBookings])
 
   // -------------------------------------------------------------------------
-  // Derived: grand total, monthly average, provider fees
+  // Derived: per-provider summaries
+  // -------------------------------------------------------------------------
+
+  /**
+   * Per-provider fee totals.
+   * All providers linked to the owner are shown, even those at 0 € in the period.
+   * When filterProvider is active, only that provider's row is shown (not all at 0€).
+   * WHY: spec requires exactly one row when a provider filter is active.
+   */
+  const providerSummaries = useMemo((): ProviderSummary[] => {
+    const feeMap = new Map<string, number>()
+    filteredBookings.forEach((b) => {
+      if (!b.provider_id) return
+      feeMap.set(b.provider_id, (feeMap.get(b.provider_id) ?? 0) + b.provider_fee)
+    })
+
+    // When a provider filter is active, only show that provider's row
+    const visibleProviders = filterProvider
+      ? providerOptions.filter((p) => p.id === filterProvider)
+      : providerOptions
+
+    return visibleProviders.map((p) => ({
+      provider_id:   p.id,
+      provider_name: p.full_name,
+      fee:           feeMap.get(p.id) ?? 0,
+    }))
+  }, [filteredBookings, providerOptions, filterProvider])
+
+  // -------------------------------------------------------------------------
+  // Derived: grand total, monthly average, provider fees total
   // -------------------------------------------------------------------------
 
   const grandTotal = useMemo(
@@ -394,12 +435,10 @@ export default function SynthesePage() {
    */
   const moyenneMensuelle = useMemo(() => grandTotal / 12, [grandTotal])
 
-  /**
-   * Total frais prestataires: SUM(provider_fee) for all filtered bookings.
-   */
-  const fraisPresta = useMemo(
-    () => filteredBookings.reduce((sum, b) => sum + b.provider_fee, 0),
-    [filteredBookings]
+  // totalPresta: SUM of all per-provider fees (replaces fraisPresta — same computation)
+  const totalPresta = useMemo(
+    () => providerSummaries.reduce((sum, p) => sum + p.fee, 0),
+    [providerSummaries]
   )
 
   // -------------------------------------------------------------------------
@@ -535,82 +574,70 @@ export default function SynthesePage() {
         )}
 
         {/* -------------------------------------------------------------- */}
-        {/* Per-listing cards                                               */}
+        {/* Single report card                                              */}
         {/* Shown only when there is at least one matching booking.         */}
+        {/* Contains: properties section, providers section, both totals.  */}
         {/* -------------------------------------------------------------- */}
         {filteredBookings.length > 0 && (
-          <>
-            <div className="flex flex-col gap-3">
+          <div className="rounded-xl border border-neutral-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden mt-2">
+
+            {/* ── Properties section header ── */}
+            <div className="px-4 pt-3 pb-1 bg-neutral-50 border-b border-neutral-100">
+              <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">Propriétés</p>
+            </div>
+
+            {/* Per-listing rows — compact (py-2) with dividers */}
+            <div className="divide-y divide-neutral-100">
               {listingSummaries.map((l) => {
                 /**
-                 * % du total annuel: listing_total / grand_total × 100.
-                 * Guard against division by zero — if grand_total is 0, show 0%.
-                 * This can happen when all filtered rental prices are 0.
+                 * % of grand total: listing_total / grand_total × 100.
+                 * Guard against division by zero — can happen when all rental prices are 0.
                  */
-                const pct = grandTotal > 0
-                  ? Math.round((l.total / grandTotal) * 100)
-                  : 0
-
+                const pct = grandTotal > 0 ? Math.round((l.total / grandTotal) * 100) : 0
                 return (
-                  <Card key={l.listing_id} className="px-4 py-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        {/* Listing name — main text */}
-                        <p className="text-sm font-semibold text-neutral-900">
-                          {l.listing_name}
-                        </p>
-                        {/* Percentage of annual total — secondary context */}
-                        <p className="text-xs text-neutral-500 mt-0.5">
-                          {LABELS.pctDuTotal(pct)}
-                        </p>
-                      </div>
-                      {/* Listing total — right-aligned for quick scanning */}
-                      <p className="text-lg font-semibold text-neutral-900">
-                        {formatPrice(l.total)}
-                      </p>
+                  <div key={l.listing_id} className="flex items-center justify-between px-4 py-2">
+                    <div>
+                      <p className="text-sm font-semibold text-neutral-900">{l.listing_name}</p>
+                      <p className="text-xs text-neutral-400">{pct}%</p>
                     </div>
-                  </Card>
+                    <p className="text-sm font-semibold text-neutral-900">{formatPrice(l.total)}</p>
+                  </div>
                 )
               })}
             </div>
 
-            {/* ---------------------------------------------------------- */}
-            {/* Summary footer block                                         */}
-            {/* Uses primary-light background + primary border to stand out */}
-            {/* as a summary / "bottom line" section.                        */}
-            {/* ---------------------------------------------------------- */}
-            <div className="rounded-xl border-2 border-primary bg-primary-light px-4 py-4 flex flex-col gap-3 mt-4">
-
-              {/* Grand total row */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-neutral-900">
-                  {LABELS.totalLabel(filterYear || currentYear)}
-                </span>
-                <span className="text-lg font-semibold text-primary">
-                  {formatPrice(grandTotal)}
-                </span>
-              </div>
-
-              {/* Secondary metrics — two-column grid on all screen sizes */}
-              <div className="border-t border-primary/20 pt-3 grid grid-cols-2 gap-3">
-                {/* Monthly average — always yearly total ÷ 12 */}
-                <div>
-                  <p className="text-xs text-neutral-500">{LABELS.moyenneMensuelle}</p>
-                  <p className="text-sm font-semibold text-neutral-900">
-                    {formatPrice(moyenneMensuelle)}
-                  </p>
-                </div>
-
-                {/* Provider fees total */}
-                <div>
-                  <p className="text-xs text-neutral-500">{LABELS.fraisPresta}</p>
-                  <p className="text-sm font-semibold text-neutral-900">
-                    {formatPrice(fraisPresta)}
-                  </p>
-                </div>
+            {/* Properties total bar */}
+            <div className="flex items-center justify-between px-4 py-3 bg-primary-light border-y border-primary/20">
+              <span className="text-sm font-semibold text-neutral-900">{LABELS.totalLabel(filterYear || currentYear)}</span>
+              <div className="text-right">
+                <p className="text-base font-semibold text-primary">{formatPrice(grandTotal)}</p>
+                <p className="text-xs text-neutral-500">{LABELS.moyenneMensuelle} {formatPrice(moyenneMensuelle)}/mois</p>
               </div>
             </div>
-          </>
+
+            {/* ── Providers section header ── */}
+            <div className="px-4 pt-3 pb-1 bg-neutral-50 border-b border-neutral-100">
+              <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">{LABELS.prestatairesSection}</p>
+            </div>
+
+            {/* Per-provider rows */}
+            <div className="divide-y divide-neutral-100">
+              {providerSummaries.map((p) => (
+                <div key={p.provider_id} className="flex items-center justify-between px-4 py-2">
+                  <span className="text-sm text-neutral-900">{p.provider_name}</span>
+                  <span className={p.fee === 0 ? "text-sm font-semibold text-neutral-400" : "text-sm font-semibold text-neutral-900"}>
+                    {formatPrice(p.fee)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Providers total bar — same visual weight as properties total */}
+            <div className="flex items-center justify-between px-4 py-3 bg-primary-light border-t border-primary/20">
+              <span className="text-sm font-semibold text-neutral-900">{LABELS.totalPrestataires}</span>
+              <span className="text-base font-semibold text-primary">{formatPrice(totalPresta)}</span>
+            </div>
+          </div>
         )}
 
       </main>
