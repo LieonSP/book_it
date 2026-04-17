@@ -55,7 +55,9 @@ const LABELS = {
   totalLabel:        (year: string) => `Total ${year}`,
   moyenneMensuelle:  "Moy. mensuelle",
   fraisPresta:       "Frais presta",
-  /** Empty state when filters produce no results */
+  /** Empty state when owner has zero bookings at all */
+  emptyNoBookings:   "Vous n'avez aucune réservation pour le moment.",
+  /** Empty state when filters produce no results (but bookings exist) */
   emptyFiltered:     "Aucune réservation pour ces filtres.",
   resetFilters:      "Réinitialiser les filtres",
   loading:           "Chargement…",
@@ -511,9 +513,16 @@ export default function SynthesePage() {
         </div>
 
         {/* -------------------------------------------------------------- */}
-        {/* Empty state — no bookings match the current filters             */}
+        {/* Empty state — two distinct cases:                               */}
+        {/*   1. Owner has zero bookings at all — no reset button needed    */}
+        {/*   2. Filters produce no match — show reset button               */}
         {/* -------------------------------------------------------------- */}
-        {filteredBookings.length === 0 && (
+        {bookings.length === 0 && (
+          <div className="text-center py-16">
+            <p className="text-sm text-neutral-500">{LABELS.emptyNoBookings}</p>
+          </div>
+        )}
+        {bookings.length > 0 && filteredBookings.length === 0 && (
           <div className="text-center py-16 flex flex-col items-center gap-3">
             <p className="text-sm text-neutral-500">{LABELS.emptyFiltered}</p>
             <button
