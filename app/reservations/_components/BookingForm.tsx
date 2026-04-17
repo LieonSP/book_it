@@ -25,16 +25,16 @@
  * SECTION INDEX (approximate line numbers):
  *   ~80   — LABELS constant (all French strings)
  *   ~160  — TypeScript interfaces (props, internal options)
- *   ~215  — Component function + state initialisation
- *   ~340  — Data-fetch effects (listings, providers, missions, auto-fill)
- *   ~530  — Validation function
- *   ~590  — Submit handler (create path)
- *   ~720  — Submit handler (edit path)
- *   ~850  — Render — Section 0 (Statut, edit only)
- *   ~890  — Render — Section 1 (Réservation)
- *   ~1060 — Render — Section 2 (Locataire)
- *   ~1120 — Render — Section 3 (Mission & Tarifs)
- *   ~1220 — Render — Sticky footer
+ *   ~220  — Component function + state initialisation
+ *   ~350  — Data-fetch effects (listings, providers, missions, auto-fill)
+ *   ~545  — Validation function
+ *   ~605  — Submit handler (create path)
+ *   ~735  — Submit handler (edit path)
+ *   ~865  — Render — Section 0 (Statut, edit only)
+ *   ~910  — Render — Section 1 (Réservation)
+ *   ~1080 — Render — Section 2 (Locataire)
+ *   ~1140 — Render — Section 3 (Mission & Tarifs)
+ *   ~1245 — Render — Sticky footer
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -235,6 +235,14 @@ const STATUS_BADGE_VARIANT: Record<BookingStatus, "pending" | "confirmed" | "neu
   cancelled: "cancelled",
 }
 
+/**
+ * The only statuses the user is allowed to pick in the edit-form dropdown.
+ * "pending" is the default DB value set on creation and is replaced by the
+ * form immediately; "done" is computed/historical. Neither should be
+ * manually selectable by a user editing a booking.
+ */
+const SELECTABLE_STATUSES: BookingStatus[] = ["confirmed", "cancelled"]
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -267,9 +275,15 @@ export function BookingForm({
   // Form field state — Section 0 (edit mode only)
   // -----------------------------------------------------------------------
 
-  const [status, setStatus] = useState<BookingStatus>(
-    initialData?.status ?? "pending"
-  )
+  // If the DB value is "pending" or "done", neither is user-selectable in the
+  // dropdown. Initialise to "confirmed" instead so the form always opens with
+  // a valid, selectable status pre-selected. The DB row is NOT changed until
+  // the user explicitly clicks "Enregistrer".
+  const [status, setStatus] = useState<BookingStatus>(() => {
+    const s = initialData?.status ?? "pending"
+    // "pending" and "done" are not in SELECTABLE_STATUSES — remap to "confirmed"
+    return SELECTABLE_STATUSES.includes(s) ? s : "confirmed"
+  })
 
   // -----------------------------------------------------------------------
   // Form field state — Section 1
@@ -875,13 +889,15 @@ export function BookingForm({
                       onChange={(e) => setStatus(e.target.value as BookingStatus)}
                       className={selectCls("status")}
                     >
-                      {(Object.entries(STATUS_LABELS) as [BookingStatus, string][]).map(
-                        ([value, label]) => (
-                          <option key={value} value={value}>
-                            {label}
-                          </option>
-                        )
-                      )}
+                      {/* Only show the statuses a user can explicitly choose.
+                          "pending" and "done" are intentionally excluded —
+                          use SELECTABLE_STATUSES to keep this in sync with
+                          the initialisation logic above. */}
+                      {SELECTABLE_STATUSES.map((value) => (
+                        <option key={value} value={value}>
+                          {STATUS_LABELS[value]}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
