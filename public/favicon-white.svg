@@ -1,0 +1,77 @@
+<!--
+  favicon-white.svg — White variant of the Book_it house logo for browser tab favicon.
+
+  WHY this file exists:
+  The main app icon (app/icon.png) uses blue tones which are nearly invisible on
+  dark browser tab backgrounds. This white version renders the same pixel-art
+  house shape entirely in white (#FFFFFF) on a fully transparent background.
+  A transparent background means it adapts to any browser chrome color —
+  the white silhouette stays visible on dark tabs and also works on light tabs.
+
+  IMPORTANT: This file must NEVER replace or affect:
+    - /public/logo-transparent.png  (page logo, blue version)
+    - /public/logo.png              (page logo, solid background)
+  Those are referenced by the app UI and must stay unchanged.
+
+  Shape: pixel-art house silhouette, matching the house shape in app/icon.png.
+  The house is drawn as a single SVG path on a 512×512 canvas so it scales
+  cleanly at any favicon size (16px, 32px, 64px, etc.).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+
+  <!--
+    The house silhouette: a pixel-art style house with:
+      - A circular/rounded badge border (the outer ring from the original icon)
+      - A peaked roof (triangle pointing up)
+      - A rectangular body
+      - A small centered door at the bottom
+
+    All shapes are filled white (#fff) on a transparent background.
+    No background rect — the SVG background is transparent by default.
+  -->
+
+  <!-- Outer badge: circular border as a thick white ring -->
+  <circle
+    cx="256"
+    cy="256"
+    r="220"
+    fill="none"
+    stroke="white"
+    stroke-width="28"
+  />
+
+  <!--
+    House body group.
+    The house is centered horizontally in the 512×512 canvas.
+    Coordinates are chosen to match the proportions of the original pixel-art icon:
+      - House body: roughly 55% of canvas width, vertically centered slightly below midpoint
+      - Roof: triangle from body top-left to peak to body top-right
+      - Door: narrow rectangle at the bottom center of the body
+  -->
+
+  <!-- House roof — triangle pointing upward -->
+  <polygon
+    points="256,90  120,240  392,240"
+    fill="white"
+  />
+
+  <!-- Roof ridge cap — small square at the peak to mimic pixel-art style -->
+  <rect x="228" y="76" width="56" height="24" rx="4" fill="white"/>
+
+  <!-- House body — rectangle below the roof -->
+  <rect x="136" y="228" width="240" height="170" rx="0" fill="white"/>
+
+  <!-- Door — centered at bottom of house body, transparent cutout to let background show -->
+  <!--
+    The door is rendered as a background-colored rect on top of the house body.
+    Since the background is transparent, we use a different technique:
+    we draw the door as a clipping cutout using SVG's "destination-out" composite.
+    However, SVG's mix-blend-mode destination-out requires a container element.
+    Simpler: just omit the door for favicon purposes — at 16×16px it's invisible anyway.
+    The house silhouette reads clearly without a door cutout at small sizes.
+  -->
+
+  <!-- Chimney — small rectangle at top-right of roof -->
+  <rect x="310" y="110" width="28" height="60" fill="white"/>
+
+</svg>
