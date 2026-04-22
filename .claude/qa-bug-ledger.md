@@ -367,3 +367,22 @@ The Dev agent reads this file before writing any code, and self-checks against e
   1. `bookings.length === 0` → "Vous n'avez aucune réservation." (no reset button)
   2. `filteredBookings.length === 0 && bookings.length > 0` → "Aucune réservation pour ces filtres." + reset button
 - **Pre-submit check:** For every empty state on a filtered list, ask: "Could this screen appear on first use with zero data?" If yes, write two separate empty-state branches — one for "no data" and one for "filters active, no match".
+
+---
+
+## BUG-019 — SQL test fixture UUIDs must be all-hex (no alphabetic-word prefixes)
+
+- **Found in issue:** #74
+- **Severity:** Minor (test infrastructure — breaks SQL tests but not production code)
+- **Affected file:** `__tests__/extraction_rls.sql` (original version with `year1111-...` UUIDs)
+- **Root cause:** UUIDs in Postgres must match the format `[0-9a-f]{8}-[0-9a-f]{4}-...`. Using a non-hex prefix like `year1111-` causes `ERROR 22P02: invalid input syntax for type uuid`. The SQL file fails entirely and no test results are returned.
+- **Wrong pattern:**
+  ```sql
+  INSERT INTO public.bookings (id, ...) VALUES ('year1111-0000-0000-0000-000000000001', ...)
+  -- ERROR: "year" contains non-hex characters y, e, a, r
+  ```
+- **Correct pattern:** Use only hex characters in all UUID segments:
+  ```sql
+  INSERT INTO public.bookings (id, ...) VALUES ('a1b21111-0000-0000-0000-000000000001', ...)
+  ```
+- **Pre-submit check:** Before running any SQL test file, scan every hardcoded UUID literal and verify each segment contains only `[0-9a-f]`. Flag any UUID with letters g–z or non-hex word prefixes.

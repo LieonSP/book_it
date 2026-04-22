@@ -24,7 +24,7 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 // Building2 and Users are kept here (commented out) so re-enabling the hidden
 // tiles in OWNER_CARDS (issue #50) only requires uncommenting two lines below.
-import { CalendarDays, /* Building2, Users, */ BarChart2, ChevronRight } from "lucide-react"
+import { CalendarDays, /* Building2, Users, */ BarChart2, Download, ChevronRight } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { Card } from "@/components/book-it/card"
 import { AppHeader } from "@/components/book-it/app-header"
@@ -63,6 +63,7 @@ const OWNER_CARDS: NavCard[] = [
   // { label: "Propriétés",   href: "/proprietes",   Icon: Building2 },   // hidden — issue #50
   // { label: "Prestataires", href: "/prestataires",  Icon: Users },       // hidden — issue #50
   { label: "Synthèse",     href: "/synthese",      Icon: BarChart2 },
+  { label: "Extraction",   href: "/extraction",    Icon: Download },
 ]
 
 /** Cards shown to service providers — they only manage their own bookings */
