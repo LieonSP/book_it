@@ -82,3 +82,11 @@ To avoid repeating topics: before writing a note, check `.claude/learning-log.md
 
 **Definition of Done:**
 A feature is done when: RLS policies are written, code is merged on `dev`, QA checklist is passed, and the GitHub Issue is closed.
+
+## Product skill (shared, cross-repo)
+
+This repo consumes the `product` plugin from `LieonSP/claude-plugins` (declared in `.claude/settings.json`).
+Type `pp` at the start of a message to load it, or use `/product`.
+
+**Editing shared frameworks/principles** (not just using them): attach the source repo first —
+`add_repo owner=LieonSP repo=claude-plugins access=push` — then edit/commit/push there.
