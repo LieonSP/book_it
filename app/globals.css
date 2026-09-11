@@ -121,3 +121,13 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Inside the iPhone-frame mockup (PhoneFrame, lg breakpoint and up), pages
+   using min-h-screen should fill the phone's screen area, not the laptop's
+   real 100vh — otherwise every page overflows the frame and forces a scroll
+   even when its content would fit on one real phone screen. */
+@media (min-width: 64rem) {
+  .phone-frame-viewport .min-h-screen {
+    min-height: 100%;
+  }
+}
