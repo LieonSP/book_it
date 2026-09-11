@@ -134,13 +134,13 @@ export default async function DashboardPage() {
           Bonjour, {profile.first_name} 👋
         </h1>
 
-        {/* Navigation cards — stacked on mobile, 2-column grid on medium+ screens
-            (only when there's more than one card — a lone card, e.g. the
-            provider's single "Réservations" tile, stays full-width instead of
-            sitting in a half-empty 2-column grid) */}
-        <div
-          className={`flex flex-col gap-3 md:grid ${cards.length > 1 ? "md:grid-cols-2" : ""}`}
-        >
+        {/* Navigation cards — always a single stacked column. A 2-column grid
+            was tried here, but with an odd card count (e.g. the owner's 3
+            tiles) the last row ends up half-empty, and with just one card
+            (the provider's single "Réservations" tile) it sits stuck in a
+            half-width column — a single column avoids both regardless of
+            how many cards there ever are. */}
+        <div className="flex flex-col gap-3">
           {cards.map(({ label, href, Icon }) => (
             <Link key={href} href={href} className="block">
               {/* Card is the design-system surface — adds border, shadow, rounded corners */}
