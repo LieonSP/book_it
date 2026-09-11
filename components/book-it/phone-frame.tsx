@@ -18,9 +18,18 @@ export function PhoneFrame({ children }: { children: React.ReactNode }) {
           aria-hidden
           className="hidden lg:absolute lg:left-1/2 lg:top-[14px] lg:z-20 lg:block lg:h-[26px] lg:w-[100px] lg:-translate-x-1/2 lg:rounded-full lg:bg-neutral-900"
         />
-        {/* Screen */}
-        <div className="phone-frame-viewport lg:h-full lg:w-full lg:overflow-x-hidden lg:overflow-y-auto lg:rounded-[42px] lg:bg-white">
-          {children}
+        {/* Screen — clips to the rounded corners AND, via `contain:layout`,
+            becomes the containing block for any `position:fixed` element in
+            the app (sticky action bars, etc.). Without this, `fixed` always
+            anchors to the real browser viewport and escapes the frame
+            entirely, landing below it instead of pinned to the phone's
+            screen. The scrollable content lives in a separate inner div so
+            that fixed children measure against the screen's full height,
+            not just its scrolled-into-view portion. */}
+        <div className="lg:relative lg:h-full lg:w-full lg:overflow-hidden lg:rounded-[42px] lg:bg-white lg:[contain:layout]">
+          <div className="phone-frame-viewport lg:h-full lg:w-full lg:overflow-x-hidden lg:overflow-y-auto">
+            {children}
+          </div>
         </div>
         {/* Home indicator — decorative, hidden below lg */}
         <div
