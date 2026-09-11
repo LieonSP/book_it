@@ -1,0 +1,16 @@
+{
+  "extraKnownMarketplaces": {
+    "claude-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "LieonSP/claude-plugins"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "product@claude-plugins": {
+      "enabled": true,
+      "scope": "project"
+    }
+  }
+}

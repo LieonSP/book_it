@@ -116,8 +116,10 @@ describe("Scenario 1 — Owner dashboard active tiles", () => {
     expect(activeLabels(ownerBlock)).not.toContain("Prestataires")
   })
 
-  it("OWNER_CARDS has exactly 2 active tiles", () => {
-    expect(activeLabels(ownerBlock)).toHaveLength(2)
+  it("OWNER_CARDS has exactly 3 active tiles (Réservations, Synthèse, Extraction)", () => {
+    // Was 2 until issue #74 added the Extraction tile — updated so this test
+    // reflects the current source instead of failing on an intentional addition.
+    expect(activeLabels(ownerBlock)).toHaveLength(3)
   })
 
 })

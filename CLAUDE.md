@@ -10,9 +10,9 @@
 - Auth: Supabase Auth (email/password — no custom JWT)
 - Backend: Supabase (Postgres, RLS policies)
 - Deployment: Vercel
-- Supabase dev: project ref `fzlqnjcfwpuomvldafwv` (CLI default — always linked to dev)
-- Supabase prod: project ref `rlylrmtysxkpdbhvxrvq`
-- To run against prod: `npx supabase link --project-ref rlylrmtysxkpdbhvxrvq` — re-link to dev after with `npx supabase link --project-ref fzlqnjcfwpuomvldafwv`
+- Supabase: **prod only, as of 2026-09-11.** The dev project (formerly ref `fzlqnjcfwpuomvldafwv`) no longer exists — it was gone (not just paused) when checked, and we decided not to recreate it for now. CLI default link is prod.
+- Supabase prod: project ref `rlylrmtysxkpdbhvxrvq` (`npx supabase link --project-ref rlylrmtysxkpdbhvxrvq`)
+- ⚠️ **No staging environment.** Every migration now lands directly on the live database — there is no dev DB to test against first. Be extra conservative with migrations: prefer additive/reversible changes, double-check RLS policy changes especially closely, and confirm with Philippe before any destructive or ambiguous migration.
 - Code-assist agent: Claude Code (runs migrations, generates code, commits per feature)
 
 **Role-based access (non-negotiable):**
@@ -82,3 +82,11 @@ To avoid repeating topics: before writing a note, check `.claude/learning-log.md
 
 **Definition of Done:**
 A feature is done when: RLS policies are written, code is merged on `dev`, QA checklist is passed, and the GitHub Issue is closed.
+
+## Product skill (shared, cross-repo)
+
+This repo consumes the `product` plugin from `LieonSP/claude-plugins` (declared in `.claude/settings.json`).
+Type `pp` at the start of a message to load it, or use `/product`.
+
+**Editing shared frameworks/principles** (not just using them): attach the source repo first —
+`add_repo owner=LieonSP repo=claude-plugins access=push` — then edit/commit/push there.
