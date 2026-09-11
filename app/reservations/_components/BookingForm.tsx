@@ -26,10 +26,11 @@
  *   ~80   — LABELS constant (all French strings)
  *   ~160  — TypeScript interfaces (props, internal options)
  *   ~220  — Component function + state initialisation
+ *   ~230  — notifyProviderAssigned() helper (issue #84 email trigger)
  *   ~350  — Data-fetch effects (listings, providers, missions, auto-fill)
  *   ~545  — Validation function
- *   ~605  — Submit handler (create path)
- *   ~735  — Submit handler (edit path)
+ *   ~605  — Submit handler (create path) — fires the email after INSERT succeeds
+ *   ~735  — Submit handler (edit path) — fires the email after UPDATE succeeds
  *   ~865  — Render — Section 0 (Statut, edit only)
  *   ~910  — Render — Section 1 (Réservation)
  *   ~1080 — Render — Section 2 (Locataire)
@@ -45,6 +46,7 @@ import { AppHeader } from "@/components/book-it/app-header"
 import { Button } from "@/components/book-it/button"
 import { InputField } from "@/components/book-it/input-field"
 import { StatusBadge } from "@/components/book-it/status-badge"
+import { shouldSendProviderAssignedEmail } from "@/lib/notifications/provider-assigned"
 
 // ---------------------------------------------------------------------------
 // All user-facing strings grouped here — never hardcoded inline in JSX.
@@ -242,6 +244,41 @@ const STATUS_BADGE_VARIANT: Record<BookingStatus, "pending" | "confirmed" | "neu
  * manually selectable by a user editing a booking.
  */
 const SELECTABLE_STATUSES: BookingStatus[] = ["confirmed", "cancelled"]
+
+// ---------------------------------------------------------------------------
+// Issue #84 — provider-assigned email notification
+//
+// WHY this call lives here (not inline in handleCreate/handleEdit) and why
+// it's a plain fetch to OUR OWN API route rather than calling Resend
+// directly: BookingForm is a "use client" component, so it can never hold
+// the RESEND_API_KEY secret. The actual Resend call happens server-side in
+// app/api/bookings/notify-provider-assigned/route.ts — this function is
+// just the (best-effort) wiring that gets the booking id there.
+//
+// WHY it never throws: per issue #84's non-negotiable rule, a failure here
+// must NEVER affect the booking save — and by the time this is called, the
+// save has already succeeded. We swallow any network error and log it for
+// local debugging only; the real "catch + log server-side" happens inside
+// the route handler itself, which is the log that actually matters.
+// ---------------------------------------------------------------------------
+
+async function notifyProviderAssigned(
+  bookingId: string,
+  previousProviderId: string | null
+): Promise<void> {
+  try {
+    await fetch("/api/bookings/notify-provider-assigned", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bookingId, previousProviderId }),
+    })
+  } catch (err) {
+    // A network failure reaching our OWN route (not a Resend failure —
+    // that's caught and logged server-side). Never rethrow: the booking
+    // was already saved successfully before this function was called.
+    console.error("[BookingForm] notifyProviderAssigned request failed", err)
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -682,6 +719,32 @@ export function BookingForm({
       }
     }
 
+    // -----------------------------------------------------------------
+    // Issue #84 — first-assignment email notification.
+    // A brand-new booking has no "previous" provider_id — it's always
+    // null/unset before this INSERT, so any provider selected at
+    // creation counts as a first assignment. Only owners can set
+    // provider_id at all (it's locked for providers — see BookingForm's
+    // isProviderFieldLocked), so this only ever needs to run for owners.
+    // Created bookings are always inserted with status "confirmed"
+    // (see the INSERT above), which is never a terminal status, but we
+    // still route the check through the shared decision function so the
+    // trigger rule is expressed in exactly one place.
+    // -----------------------------------------------------------------
+    if (
+      userRole === "owner" &&
+      shouldSendProviderAssignedEmail({
+        previousProviderId: null,
+        newProviderId: providerId || null,
+        status: "confirmed",
+      })
+    ) {
+      // Fire-and-forget: notifyProviderAssigned never throws, and the
+      // booking save has already succeeded by this point — don't make
+      // the user wait on an email round-trip before redirecting.
+      void notifyProviderAssigned(booking.id, null)
+    }
+
     // Success — navigate with toast signal in sessionStorage
     sessionStorage.setItem("booking_toast", LABELS.toastCreated)
     router.push("/reservations")
@@ -778,6 +841,34 @@ export function BookingForm({
           return
         }
       }
+    }
+
+    // -----------------------------------------------------------------
+    // Issue #84 — first-assignment email notification.
+    // Only owners can change provider_id (locked for providers), so
+    // this only ever needs to run for owners — matches the issue's
+    // dependency note on #33 that the trigger has no provider-triggered
+    // case to handle.
+    //
+    // IMPORTANT: we pass initialData.status (the booking's status
+    // BEFORE this edit), not the `status` state variable being saved.
+    // See the long comment on ProviderAssignmentTransition.status in
+    // lib/notifications/provider-assigned.ts for why — in short, the
+    // edit form silently remaps a `done` booking's status dropdown to
+    // `confirmed` for its own UX, and using the pre-edit DB value keeps
+    // "assigning a provider to a done booking never notifies" correct
+    // regardless of that remap.
+    // -----------------------------------------------------------------
+    if (
+      userRole === "owner" &&
+      shouldSendProviderAssignedEmail({
+        previousProviderId: initialData.providerId || null,
+        newProviderId: providerId || null,
+        status: initialData.status,
+      })
+    ) {
+      // Fire-and-forget — see notifyProviderAssigned's own comment for why.
+      void notifyProviderAssigned(initialData.id, initialData.providerId || null)
     }
 
     // Success — navigate with toast signal in sessionStorage

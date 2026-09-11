@@ -214,7 +214,8 @@ Rules for ledger entries:
 
 ## Step 4 — Iteration loop
 
-- If QA verdict is ✅ PASS → go to Step 5
+- If QA verdict is ✅ PASS → **before trusting it**, independently re-run `npm run lint`, `npx vitest run`, and `npm run build` yourself as the orchestrator — do not just relay the QA agent's reported numbers. A sub-agent can report a real pass that only held under a local, reverted workaround (e.g. a temporarily-patched config file) — its own report is then technically true, but the actual committed state still fails. (See BUG-022.) If your own run disagrees with QA's, treat that as a real finding: fix it yourself if it's a small, self-contained, well-understood fix, otherwise send it back to Dev/QA like any other bug.
+- Once your own independent run is green too → go to Step 5
 - If QA verdict is ❌ FAIL → send the bug report back to the Dev agent with instruction to fix only the listed bugs, then re-run QA
 - Maximum **4 rounds** — if bugs remain after round 4, escalate to the user
 
