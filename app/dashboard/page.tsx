@@ -15,8 +15,9 @@
  *
  * Layout:
  * - Header with logo + user avatar (first letter of first name)
- * - Grid of navigation cards — owners see 2 (Réservations + Synthèse), providers see 1
- *   (Propriétés and Prestataires are temporarily hidden — commented out, not deleted)
+ * - Grid of navigation cards — owners see 3 (Réservations, Synthèse, Extraction),
+ *   providers see 1 (Propriétés and Prestataires are temporarily hidden — commented
+ *   out, not deleted)
  * - Each card links to a feature section of the app
  */
 

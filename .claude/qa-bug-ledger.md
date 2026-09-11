@@ -386,3 +386,17 @@ The Dev agent reads this file before writing any code, and self-checks against e
   INSERT INTO public.bookings (id, ...) VALUES ('a1b21111-0000-0000-0000-000000000001', ...)
   ```
 - **Pre-submit check:** Before running any SQL test file, scan every hardcoded UUID literal and verify each segment contains only `[0-9a-f]`. Flag any UUID with letters g–z or non-hex word prefixes.
+
+---
+
+## BUG-020 — Adding an item to a UI array broke a stale "exact count" regression test, and lint errors shipped to `main`
+
+- **Found in issue:** routine status check (no issue number — surfaced by running `npm run lint` / `npm test` / `npm run build` cold, which apparently isn't done as a gate before merge)
+- **Severity:** Moderate (test suite red on `main`; build passes but with real ESLint errors)
+- **Affected files:** `__tests__/issue-50-dashboard-tiles.test.ts`, `app/dashboard/page.tsx`, `__tests__/app-header.test.tsx`, `components/book-it/input-field.tsx`
+- **Root cause (two separate issues, same root cause: no pre-merge lint/test gate):**
+  1. Issue #74 (Extraction screen) added a third tile to `OWNER_CARDS` in `app/dashboard/page.tsx`. The issue #50 regression test asserted `toHaveLength(2)` for "exactly N active tiles" — nobody updated that assertion when the array grew, so `npm test` was already failing on `main`.
+  2. `__tests__/app-header.test.tsx` used `require("fs")` / `require("path")` inline instead of ES imports (15 ESLint errors), and `components/book-it/input-field.tsx` called `React.useId()` conditionally inside `id || React.useId()` (a `react-hooks/rules-of-hooks` violation) — both pre-existing, both unrelated to recent feature work, neither caught before merge.
+- **Wrong pattern:** Writing an "exactly N items" test for an array that's expected to grow, with no comment flagging it as brittle; running `npm run build`/`npm test` locally without also running `npm run lint` before considering a task done.
+- **Correct pattern:** When a regression test asserts an exact count on a list that other issues are expected to extend (nav tiles, card grids, menu items), add a one-line comment on the assertion naming which issue it guards and why the number might need to change. Before any status report, run `npm run lint`, `npm test`, and `npm run build` together — not just the one the task happens to touch.
+- **Pre-submit check:** Before marking a task done, run all three: `npm run lint`, `npm test`, `npm run build`. If a test asserts an exact array length, check whether the PR's own diff changes that array — if so, update the assertion in the same commit, don't leave it for later.
