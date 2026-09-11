@@ -400,3 +400,17 @@ The Dev agent reads this file before writing any code, and self-checks against e
 - **Wrong pattern:** Writing an "exactly N items" test for an array that's expected to grow, with no comment flagging it as brittle; running `npm run build`/`npm test` locally without also running `npm run lint` before considering a task done.
 - **Correct pattern:** When a regression test asserts an exact count on a list that other issues are expected to extend (nav tiles, card grids, menu items), add a one-line comment on the assertion naming which issue it guards and why the number might need to change. Before any status report, run `npm run lint`, `npm test`, and `npm run build` together — not just the one the task happens to touch.
 - **Pre-submit check:** Before marking a task done, run all three: `npm run lint`, `npm test`, `npm run build`. If a test asserts an exact array length, check whether the PR's own diff changes that array — if so, update the assertion in the same commit, don't leave it for later.
+
+---
+
+## BUG-021 — Dev Supabase project disappeared silently; prod restore left the migration tracker out of sync; `/deploy` used a method that bypasses the tracker
+
+- **Found in issue:** routine status check, 2026-09-11 (no issue number)
+- **Severity:** Critical (production security gap — a missing RLS-adjacent trigger — went undetected until a manual check)
+- **Root cause (three compounding issues):**
+  1. The dev project (ref `fzlqnjcfwpuomvldafwv`, documented in `CLAUDE.md`) no longer existed in the Supabase account at all — DNS for it returned NXDOMAIN, and it was absent from `supabase projects list`. Nobody had checked connectivity in a while, so this went unnoticed.
+  2. After a prod DB restore, `npx supabase migration list --linked` showed the most recent migration (`20260416000002_block_provider_fee_update.sql` — a security trigger blocking providers from tampering with `provider_fee`/`pricing_id`) present locally but missing on remote. The restore snapshot predated it. Nothing had re-checked migration sync after the restore.
+  3. `.claude/commands/deploy.md` Step 4 ran migrations with `npx supabase db query --linked -f <file>.sql`, which does **not** update `supabase_migrations.schema_migrations` — directly contradicting the non-negotiable rule elsewhere in `CLAUDE.md` to always use `db push --linked`. This is a plausible root cause for tracker drift on any future deploy, independent of the restore.
+- **Wrong pattern:** Assuming a documented project ref still exists; assuming a DB restore preserves all migrations; running `db query -f` for migrations instead of `db push`.
+- **Correct pattern:** After ANY restore, pause/resume, or long gap since last touching a Supabase project, run `npx supabase migration list --linked` before assuming schema is current — do not just check the app builds. Migrations must always go through `db push --linked`, never `db query -f` on individual files, so the tracker stays authoritative.
+- **Pre-submit check:** Before any prod deploy or status check, run `npx supabase projects list` to confirm the target project ref actually exists and is `ACTIVE_HEALTHY`, then `npx supabase migration list --linked` to confirm every migration has a matching `local`/`remote` entry. Fixed in `deploy.md` Step 4 to use `db push --linked` with a before/after `migration list --linked` check.
