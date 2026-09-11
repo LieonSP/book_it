@@ -58,10 +58,16 @@ Re-link the Supabase CLI to prod before running any migration:
 npx supabase link --project-ref rlylrmtysxkpdbhvxrvq
 ```
 
-Run each migration file listed in the release checklist, in order:
+Apply pending migrations with `db push`, per the non-negotiable rule in `CLAUDE.md` — this is the only method that keeps `supabase_migrations.schema_migrations` in sync with what's actually applied. Do NOT run individual files with `db query -f`; that bypasses the tracker and is exactly how prod and the migration files drift out of sync.
 ```bash
-npx supabase db query --linked -f supabase/migrations/<filename>.sql
+npx supabase db push --linked
 ```
+
+Before AND after pushing, confirm the tracker is actually in sync:
+```bash
+npx supabase migration list --linked
+```
+Every entry should show a matching `local` and `remote` version. If any migration shows an empty `remote` after push, stop — the push did not apply cleanly.
 
 After each migration, run a quick sanity check to confirm the schema change landed:
 ```bash
@@ -70,12 +76,9 @@ npx supabase db query --linked -- -c "SELECT to_regclass('public.<table_name>')"
 ```
 Adapt the sanity check to whatever the migration did (new table, new column, new policy, etc.).
 
-If any migration fails: **stop immediately**, do not run subsequent migrations, do not merge to main. Report the exact error and the rollback steps from the release checklist.
+If any migration fails: **stop immediately**, do not merge to main. Report the exact error and the rollback steps from the release checklist.
 
-After all migrations succeed, re-link back to dev:
-```bash
-npx supabase link --project-ref fzlqnjcfwpuomvldafwv
-```
+We are prod-only as of 2026-09-11 (see `CLAUDE.md`) — the CLI stays linked to prod, no re-link step needed after this.
 
 ---
 

@@ -121,6 +121,9 @@ OR EXISTS (
 ```
 Also: for every `.insert(...).select(...).single()` in a multi-step flow, verify the acting role can SELECT the just-inserted row before any downstream rows are created. If the SELECT policy requires a later INSERT to exist first, it will silently return null and the flow will fail.
 
+**BEFORE submitting your status report — run the full check trio, not just the one your task touches:**
+Run `npm run lint`, `npm test`, and `npm run build` — all three, every time, even for changes that look UI-only or test-only. A change to one file (e.g. a new dashboard tile) can break an "exact count" assertion in an unrelated test file, and that only surfaces if you actually run the suite. If a test asserts an exact array/list length and your diff changes that array, update the assertion in the same commit — do not leave it for a future task. (See BUG-020.)
+
 **BEFORE submitting your status report — self-check against the bug ledger:**
 Re-read `.claude/qa-bug-ledger.md` and verify your code does not match any listed pattern. Include a section in your status report titled "Bug ledger self-check" listing each pattern ID (e.g. BUG-001) and whether your code is clear of it.
 

@@ -20,6 +20,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
+import { readFileSync, existsSync } from "fs"
+import { resolve } from "path"
 
 // ---------------------------------------------------------------------------
 // Re-implementation of AppHeader decision logic for isolated testing.
@@ -322,9 +324,7 @@ describe("Issue #67 — AppHeader two-state header logic", () => {
   describe("Acceptance criteria — touch target and routing method", () => {
     it("AC5 — touch target class h-11 w-11 present in app-header.tsx source", () => {
       // Static check: verify the source file contains the 44×44px touch target class.
-      const { readFileSync } = require("fs")
-      const { resolve } = require("path")
-      const source = readFileSync(
+const source = readFileSync(
         resolve(__dirname, "../components/book-it/app-header.tsx"),
         "utf-8"
       )
@@ -336,9 +336,7 @@ describe("Issue #67 — AppHeader two-state header logic", () => {
       // We strip block comments and line comments before checking, because the
       // JSDoc in the file intentionally mentions "router.back()" in a comment
       // explaining WHY it is avoided — we only care about live call-sites.
-      const { readFileSync } = require("fs")
-      const { resolve } = require("path")
-      const raw = readFileSync(
+const raw = readFileSync(
         resolve(__dirname, "../components/book-it/app-header.tsx"),
         "utf-8"
       )
@@ -351,9 +349,7 @@ describe("Issue #67 — AppHeader two-state header logic", () => {
     })
 
     it("AC6 — router.replace() NOT present in app-header.tsx source", () => {
-      const { readFileSync } = require("fs")
-      const { resolve } = require("path")
-      const source = readFileSync(
+const source = readFileSync(
         resolve(__dirname, "../components/book-it/app-header.tsx"),
         "utf-8"
       )
@@ -362,9 +358,7 @@ describe("Issue #67 — AppHeader two-state header logic", () => {
 
     it("AC7 — all changes confined to AppHeader: no router.back() or router.replace() calls in executable code", () => {
       // Static check on executable code only (comments stripped).
-      const { readFileSync } = require("fs")
-      const { resolve } = require("path")
-      const raw = readFileSync(
+const raw = readFileSync(
         resolve(__dirname, "../components/book-it/app-header.tsx"),
         "utf-8"
       )
@@ -378,9 +372,7 @@ describe("Issue #67 — AppHeader two-state header logic", () => {
     it("AC3 — pointer-events-none present on title div in app-header.tsx source", () => {
       // Static check: centred title must have pointer-events-none to avoid
       // swallowing tap events on the back button and right-slot controls.
-      const { readFileSync } = require("fs")
-      const { resolve } = require("path")
-      const source = readFileSync(
+const source = readFileSync(
         resolve(__dirname, "../components/book-it/app-header.tsx"),
         "utf-8"
       )
@@ -393,16 +385,12 @@ describe("Issue #67 — AppHeader two-state header logic", () => {
   // -------------------------------------------------------------------------
   describe("File cleanup — design-preview removal", () => {
     it("app/design-preview/ directory no longer exists", () => {
-      const { existsSync } = require("fs")
-      const { resolve } = require("path")
-      const dirPath = resolve(__dirname, "../app/design-preview")
+const dirPath = resolve(__dirname, "../app/design-preview")
       expect(existsSync(dirPath)).toBe(false)
     })
 
     it("proxy.ts has no design-preview exemption in matcher", () => {
-      const { readFileSync } = require("fs")
-      const { resolve } = require("path")
-      const source = readFileSync(resolve(__dirname, "../proxy.ts"), "utf-8")
+const source = readFileSync(resolve(__dirname, "../proxy.ts"), "utf-8")
       expect(source).not.toContain("design-preview")
     })
   })
