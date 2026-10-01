@@ -14,7 +14,7 @@ At the very beginning of every `/build` run, before doing anything else, output 
 > ⚠️ **Prevent sleep during this build:**
 > Run this in a terminal tab and leave it open:
 > ```
-> caffeinate -i
+> caffeinate -d
 > ```
 > When the build is done, stop it with **Ctrl+C** in that tab.
 
