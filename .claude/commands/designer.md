@@ -265,7 +265,7 @@ Import components from `@/components/book-it`. Use CSS variable tokens defined i
 - [ ] Desktop layout correct at 1024px+
 - [ ] All interactions functional
 - [ ] No TypeScript errors
-- [ ] Tested against dev Supabase project (ref: fzlqnjcfwpuomvldafwv)
+- [ ] Tested against the Supabase project (ref: lrvpijmnujqbrehzskwe) using fake test data only
 ```
 
 **D2. Post the build prompt as a comment on the issue:**

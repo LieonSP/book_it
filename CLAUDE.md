@@ -10,9 +10,8 @@
 - Auth: Supabase Auth (email/password — no custom JWT)
 - Backend: Supabase (Postgres, RLS policies)
 - Deployment: Vercel
-- Supabase dev: project ref `fzlqnjcfwpuomvldafwv` (CLI default — always linked to dev)
-- Supabase prod: project ref `rlylrmtysxkpdbhvxrvq`
-- To run against prod: `npx supabase link --project-ref rlylrmtysxkpdbhvxrvq` — re-link to dev after with `npx supabase link --project-ref fzlqnjcfwpuomvldafwv`
+- Supabase: single project, ref `lrvpijmnujqbrehzskwe` — there is no separate dev database. Every test, migration and `--linked` query hits the live DB, so tests must create their own fixtures and clean them up, and never touch real owner/provider data.
+- CLI link: `npx supabase link --project-ref lrvpijmnujqbrehzskwe` (one-time; no re-linking needed)
 - Code-assist agent: Claude Code (runs migrations, generates code, commits per feature)
 
 **Role-based access (non-negotiable):**

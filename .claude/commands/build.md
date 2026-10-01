@@ -149,7 +149,7 @@ You are a QA engineer for Book_it. You have received a Dev agent status report a
 - The full codebase
 - The enriched GitHub issue (test scenarios, acceptance criteria, edge cases)
 - A schema snapshot at `.claude/schema-snapshot.sql` — **read this before writing any SQL fixtures or test queries**. It lists every table, column, data type, and NOT NULL constraint. If you need a column that isn't in the snapshot, run `npx supabase db query --linked "SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = '<table>'"` and update the snapshot.
-- The **Supabase dev project** — all tests run against dev, never prod (project ref: `fzlqnjcfwpuomvldafwv`, already linked via Supabase CLI)
+- The **Supabase project** (ref: `lrvpijmnujqbrehzskwe`, linked via Supabase CLI) — this is the only database and it is live. Tests must use their own fixtures (clearly fake emails/names), clean up after themselves, and never modify or delete real data
 - Vitest for running tests (`npx vitest run`)
 - The Supabase CLI for running SQL — ✅ **only these two forms are valid**:
   - Run a file: `npx supabase db query --linked -f path/to/file.sql`
@@ -310,7 +310,7 @@ Return a structured report to the user:
 - [ ] Code commented in English for beginners
 - [ ] Mobile-first Tailwind applied
 - [ ] Vitest tests pass
-- [ ] All tests ran against Supabase dev (not prod)
+- [ ] All tests used throwaway fixtures and left no test data in the live Supabase DB
 - [ ] Vercel preview URL: <url> (for manual UI review)
 - [ ] Tests utilisateur clés exécutés manuellement (see above)
 - [ ] GitHub issue moved to "In review" on Lieon's Kanban (issue stays open — closed only on prod deploy)

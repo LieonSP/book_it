@@ -53,10 +53,7 @@ If no new environment variables are listed: skip this step entirely.
 
 ## Step 4 — Run migrations on prod
 
-Re-link the Supabase CLI to prod before running any migration:
-```bash
-npx supabase link --project-ref rlylrmtysxkpdbhvxrvq
-```
+There is a single Supabase project (`lrvpijmnujqbrehzskwe`) and the CLI is already linked to it. Confirm with `npx supabase projects list` that the linked project is `lrvpijmnujqbrehzskwe` before running any migration.
 
 Run each migration file listed in the release checklist, in order:
 ```bash
@@ -71,11 +68,6 @@ npx supabase db query --linked -- -c "SELECT to_regclass('public.<table_name>')"
 Adapt the sanity check to whatever the migration did (new table, new column, new policy, etc.).
 
 If any migration fails: **stop immediately**, do not run subsequent migrations, do not merge to main. Report the exact error and the rollback steps from the release checklist.
-
-After all migrations succeed, re-link back to dev:
-```bash
-npx supabase link --project-ref fzlqnjcfwpuomvldafwv
-```
 
 ---
 

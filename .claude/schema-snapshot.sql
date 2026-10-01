@@ -1,6 +1,6 @@
 -- ============================================================
 -- Book_it — Supabase schema snapshot
--- Generated from: dev project (fzlqnjcfwpuomvldafwv)
+-- Generated from: Supabase project (lrvpijmnujqbrehzskwe)
 -- Last updated: 2026-04-16 (Issue #33)
 --
 -- PURPOSE: reference for Dev and QA agents writing SQL fixtures
