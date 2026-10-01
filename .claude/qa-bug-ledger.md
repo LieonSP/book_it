@@ -154,15 +154,15 @@ The Dev agent reads this file before writing any code, and self-checks against e
 
 - **Found in issue:** #30
 - **Severity:** Major (users cannot log in — password set in auth does not match the intended value)
-- **Root cause:** When a password containing `$` (e.g. `Qz$7wLnK@4jD`) is passed inside a bash double-quoted string, the shell expands `$7` as a positional variable (empty string), silently corrupting the password. The API call succeeds with no error but sets a different password than intended.
+- **Root cause:** When a password containing `$` (e.g. `Ab$7cdEf@1gH`) is passed inside a bash double-quoted string, the shell expands `$7` as a positional variable (empty string), silently corrupting the password. The API call succeeds with no error but sets a different password than intended.
 - **Wrong pattern:**
   ```bash
-  PASS="Qz$7wLnK@4jD"
+  PASS="Ab$7cdEf@1gH"
   curl ... -d "{\"password\":\"$PASS\"}"  # $7 is expanded → wrong password
   ```
 - **Correct pattern:** Use Python (or any language with native string literals) for API calls that include passwords or secrets with special characters:
   ```python
-  payload = json.dumps({"password": "Qz$7wLnK@4jD"}).encode()  # literal, no interpolation
+  payload = json.dumps({"password": "Ab$7cdEf@1gH"}).encode()  # literal, no interpolation
   ```
 - **Pre-submit check:** Any time a bash script passes a secret or password to an API, verify it contains no `$`, backticks, or `!` characters. If it does, switch to Python or write the payload to a temp JSON file with `jq` and pass it via `-d @file`.
 
