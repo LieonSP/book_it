@@ -53,10 +53,7 @@ If no new environment variables are listed: skip this step entirely.
 
 ## Step 4 — Run migrations on prod
 
-Re-link the Supabase CLI to prod before running any migration:
-```bash
-npx supabase link --project-ref rlylrmtysxkpdbhvxrvq
-```
+There is a single Supabase project (`lrvpijmnujqbrehzskwe`) and the CLI is already linked to it. Confirm with `npx supabase projects list` that the linked project is `lrvpijmnujqbrehzskwe` before running any migration.
 
 Apply pending migrations with `db push`, per the non-negotiable rule in `CLAUDE.md` — this is the only method that keeps `supabase_migrations.schema_migrations` in sync with what's actually applied. Do NOT run individual files with `db query -f`; that bypasses the tracker and is exactly how prod and the migration files drift out of sync.
 ```bash
@@ -77,8 +74,6 @@ npx supabase db query --linked -- -c "SELECT to_regclass('public.<table_name>')"
 Adapt the sanity check to whatever the migration did (new table, new column, new policy, etc.).
 
 If any migration fails: **stop immediately**, do not merge to main. Report the exact error and the rollback steps from the release checklist.
-
-We are prod-only as of 2026-09-11 (see `CLAUDE.md`) — the CLI stays linked to prod, no re-link step needed after this.
 
 ---
 

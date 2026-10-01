@@ -92,12 +92,10 @@ The following migration(s) were added as part of this fix and **must be applied 
 
 ### How to apply
 ```
-npx supabase link --project-ref rlylrmtysxkpdbhvxrvq
 npx supabase db push --linked
-npx supabase link --project-ref fzlqnjcfwpuomvldafwv
 ```
 
-> Re-link to dev after pushing to prod.
+> The CLI is already linked to the single Supabase project (`lrvpijmnujqbrehzskwe`) — no re-linking needed.
 EOF
 )"
 ```

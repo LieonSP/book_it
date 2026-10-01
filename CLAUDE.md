@@ -10,13 +10,9 @@
 - Auth: Supabase Auth (email/password — no custom JWT)
 - Backend: Supabase (Postgres, RLS policies)
 - Deployment: Vercel
-- Supabase: **prod only, as of 2026-09-11.** The dev project (formerly ref `fzlqnjcfwpuomvldafwv`) no longer exists — it was gone (not just paused) when checked, and we decided not to recreate it for now.
-- ⚠️ **Prod project migration in progress (started 2026-09-11), for billing/org consolidation.**
-  - New project: ref `lrvpijmnujqbrehzskwe` — schema is live (all 9 migrations pushed via `db push --linked` and verified in sync), but this is **not yet the live app**. Old prod data was QA/test data only (6 users, 4 listings, 70 bookings) — explicitly OK to lose, so this was a clean schema push, not a data migration.
-  - Old project: ref `rlylrmtysxkpdbhvxrvq` — **still what Vercel Production actually serves** until the env vars are cut over there. Do not decommission until the new project is confirmed live and working.
-  - Once Vercel's Production env vars are updated to the new project, flip this section: `rlylrmtysxkpdbhvxrvq` → `lrvpijmnujqbrehzskwe` as the documented prod ref, and delete this migration-in-progress note.
-  - `npx supabase link --project-ref lrvpijmnujqbrehzskwe` to work against the new project.
-- ⚠️ **No staging environment.** Every migration now lands directly on the live database — there is no dev DB to test against first. Be extra conservative with migrations: prefer additive/reversible changes, double-check RLS policy changes especially closely, and confirm with Philippe before any destructive or ambiguous migration.
+- Supabase: **single project, prod only** — ref `lrvpijmnujqbrehzskwe` (live since the 2026-09 migration for billing/org consolidation). The old dev (`fzlqnjcfwpuomvldafwv`) and prod (`rlylrmtysxkpdbhvxrvq`) projects have been deleted. Old data was QA/test data only.
+- CLI link: `npx supabase link --project-ref lrvpijmnujqbrehzskwe` (one-time; no re-linking needed)
+- ⚠️ **No staging environment.** Every test, migration and `--linked` query hits the live database. Tests must create their own fixtures and clean them up, and never touch real owner/provider data. Be extra conservative with migrations: prefer additive/reversible changes, double-check RLS policy changes especially closely, and confirm with Philippe before any destructive or ambiguous migration.
 - Code-assist agent: Claude Code (runs migrations, generates code, commits per feature)
 
 **Role-based access (non-negotiable):**
