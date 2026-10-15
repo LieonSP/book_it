@@ -414,3 +414,22 @@ The Dev agent reads this file before writing any code, and self-checks against e
 - **Wrong pattern:** Assuming a documented project ref still exists; assuming a DB restore preserves all migrations; running `db query -f` for migrations instead of `db push`.
 - **Correct pattern:** After ANY restore, pause/resume, or long gap since last touching a Supabase project, run `npx supabase migration list --linked` before assuming schema is current — do not just check the app builds. Migrations must always go through `db push --linked`, never `db query -f` on individual files, so the tracker stays authoritative.
 - **Pre-submit check:** Before any prod deploy or status check, run `npx supabase projects list` to confirm the target project ref actually exists and is `ACTIVE_HEALTHY`, then `npx supabase migration list --linked` to confirm every migration has a matching `local`/`remote` entry. Fixed in `deploy.md` Step 4 to use `db push --linked` with a before/after `migration list --linked` check.
+
+---
+
+## BUG-022 — `vitest.config.ts`'s `@` alias is a hardcoded absolute path to the main checkout, so new files that only exist in a worktree can't be unit-tested from that worktree
+
+- **Found in issue:** #84 (Provider mission-assigned email notification), during QA
+- **Severity:** Major (silently blocks testing of any new code in a worktree; would have produced a false "can't verify" or forced an untested merge)
+- **Affected file:** `vitest.config.ts` (line 26: `"@": "/Users/philippechambert-loir/Documents/Repos/book_it"`)
+- **Root cause:** Dev work for this repo happens in git worktrees under `.claude/worktrees/<branch>/`, each an isolated checkout. `vitest.config.ts` resolves the `@/...` import alias (used everywhere, including this issue's own `lib/notifications/*.ts` and `app/api/.../route.ts`) to a hardcoded absolute path pointing at the *original* checkout, not `__dirname`/the worktree running the tests. For files that exist identically in both locations this is invisible — the alias silently resolves to a stale-but-identical copy. But for files that only exist in the worktree (i.e. any new file added by the current task, before it's merged to the original checkout), `@/...` imports throw `Cannot find package`, and `npx vitest run` on the new test file fails outright.
+- **Wrong pattern:**
+  ```ts
+  resolve: { alias: { "@": "/Users/philippechambert-loir/Documents/Repos/book_it" } }
+  ```
+- **Correct pattern:** Resolve the alias relative to the config file itself, so it always points at whichever checkout (main or worktree) is actually running the tests:
+  ```ts
+  resolve: { alias: { "@": __dirname } }
+  ```
+- **Pre-submit check:** Before running `npx vitest run` on any newly added file that uses `@/...` imports (or before trusting a "N tests passed" count from a worktree), verify the alias in `vitest.config.ts` resolves relative to the config file, not to a hardcoded path. A quick smoke test: import any new `@/...`-only file in a throwaway test and confirm it resolves, rather than assuming the full-suite pass count covers it.
+- **Resolved:** Fixed during the same build, by the orchestrator, after an independent re-run of the full suite (outside QA's temporary local patch) reproduced the 2 failures QA had worked around. `vitest.config.ts` now uses `fileURLToPath(new URL(".", import.meta.url))` instead of `__dirname` (this repo's `vitest.config.ts` is loaded as an ES module, where `__dirname` isn't available) — same effect, portable across any checkout. Full suite verified green (331/331) with the fix in place, not worked around. Lesson for the orchestrator role specifically: **don't trust a sub-agent's reported pass count without an independent re-run** — a QA agent's local, reverted workaround can make its own report true while the actual committed state still fails.

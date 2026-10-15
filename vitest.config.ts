@@ -10,6 +10,12 @@
  */
 
 import { defineConfig } from "vitest/config";
+import { fileURLToPath } from "node:url";
+
+// Resolve relative to this config file's own location, not a hardcoded
+// absolute path — a hardcoded path only works in one specific checkout and
+// silently breaks in any other clone or git worktree (see BUG-022).
+const projectRoot = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
   test: {
@@ -23,7 +29,7 @@ export default defineConfig({
     alias: {
       // Allow imports like "@/lib/supabase" to resolve to "lib/supabase"
       // This mirrors the path alias configured in tsconfig.json
-      "@": "/Users/philippechambert-loir/Documents/Repos/book_it",
+      "@": projectRoot,
     },
   },
 });
